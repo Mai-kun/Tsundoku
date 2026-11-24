@@ -265,7 +265,6 @@ class _CenteredSearch extends ConsumerWidget {
               message: t.tr('header.searchTooltip'),
               child: SizedBox(
                 width: width,
-                height: 40, // Button h-10 (md)
                 child: TsundokuButton(
                   variant: ButtonVariant.secondary,
                   size: ButtonSize.md,

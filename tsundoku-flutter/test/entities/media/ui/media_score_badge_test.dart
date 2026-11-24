@@ -36,17 +36,9 @@ void main() {
     expect(find.text('8,5'), findsOneWidget);
   });
 
-  testWidgets('Tooltip: createModal.fields.score + сырой score (1-в-1 title)',
+  testWidgets('Tooltip на MediaScoreBadge отключён (нет hint при наведении)',
       (tester) async {
     await pump(tester, 8);
-    final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
-    expect(tooltip.message, 'Оценка: 8');
-  });
-
-  testWidgets('Tooltip с дробным score — точка, как в JS-интерполяции',
-      (tester) async {
-    await pump(tester, 8.5);
-    final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
-    expect(tooltip.message, 'Оценка: 8.5');
+    expect(find.byType(Tooltip), findsNothing);
   });
 }

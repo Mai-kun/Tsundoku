@@ -25,6 +25,8 @@ class TsundokuSegmentedControl<T> extends StatelessWidget {
   final T value;
   final ValueChanged<T> onChanged;
   final bool expand;
+  final bool equalWidth;
+  final double? itemHeight;
   final Color? backgroundColor;
   final Color? activeColor;
   final Color? activeTextColor;
@@ -38,6 +40,8 @@ class TsundokuSegmentedControl<T> extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.expand = false,
+    this.equalWidth = false,
+    this.itemHeight,
     this.backgroundColor,
     this.activeColor,
     this.activeTextColor,
@@ -64,7 +68,12 @@ class TsundokuSegmentedControl<T> extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          height: itemHeight,
+          alignment: itemHeight != null ? Alignment.center : null,
+          padding: EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: itemHeight != null ? 0 : 6,
+          ),
           decoration: BoxDecoration(
             color: isSelected ? actBg : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
@@ -103,13 +112,21 @@ class TsundokuSegmentedControl<T> extends StatelessWidget {
         ),
       );
 
-      if (expand) {
+      if (expand || equalWidth) {
         button = Expanded(child: button);
       }
       children.add(button);
       if (i < options.length - 1) {
         children.add(const SizedBox(width: 4));
       }
+    }
+
+    Widget row = Row(
+      mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+      children: children,
+    );
+    if (!expand && equalWidth) {
+      row = IntrinsicWidth(child: row);
     }
 
     return Container(
@@ -119,13 +136,12 @@ class TsundokuSegmentedControl<T> extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0x14FFFFFF)), // white/8
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
-          children: children,
-        ),
-      ),
+      child: expand
+          ? row
+          : SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: row,
+            ),
     );
   }
 }

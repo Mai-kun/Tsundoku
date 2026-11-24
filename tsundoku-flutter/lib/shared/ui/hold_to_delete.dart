@@ -12,6 +12,7 @@ library;
 import 'dart:async';
 
 import 'package:clock/clock.dart';
+import 'package:flutter/foundation.dart';
 
 
 class HoldToDeleteOptions {
@@ -50,6 +51,10 @@ class HoldToDeleteOptions {
   });
 }
 
+class _HoldNotifier extends ChangeNotifier {
+  void notify() => notifyListeners();
+}
+
 class HoldToDeleteController {
   /// Fill ratio 0..1; caller binds scaleX(progress) with origin-left.
   double progress = 0;
@@ -57,10 +62,14 @@ class HoldToDeleteController {
   bool hintVisible = false;
 
   final HoldToDeleteOptions options;
+  final _HoldNotifier _notifier = _HoldNotifier();
   Timer? _raf;
   int _startedAt = 0;
   int _lastFrameAt = 0;
   Timer? _hintTimer;
+
+  /// Emits whenever [progress], [holding], or [hintVisible] changes.
+  Listenable get changes => _notifier;
 
   static const int _defaultDurationMs = 1000;
   static const int _defaultShortPressMs = 300;
@@ -73,12 +82,13 @@ class HoldToDeleteController {
   void press() {
     if (options.isEnabled?.call() == false) return;
     if (holding) return;
-    _clearHint();
+    _clearHint(notify: false);
     holding = true;
     _startedAt = clock.now().millisecondsSinceEpoch;
     _lastFrameAt = _startedAt;
     _raf?.cancel();
     _raf = Timer.periodic(_frameStep, (_) => _frame());
+    _notifier.notify();
   }
 
   void release() {
@@ -89,9 +99,11 @@ class HoldToDeleteController {
       _startRollback();
       _showHint();
       options.onShortPress?.call();
+      _notifier.notify();
       return;
     }
     _startRollback();
+    _notifier.notify();
   }
 
   /// Completes immediately — the keyboard path (Enter/Space) skips the hold.
@@ -117,8 +129,10 @@ class HoldToDeleteController {
         options.onComplete();
         return;
       }
+      _notifier.notify();
     } else {
       progress = _max(0, progress - dt / _rollback());
+      _notifier.notify();
       if (progress <= 0) {
         _raf?.cancel();
         return;
@@ -133,27 +147,32 @@ class HoldToDeleteController {
   }
 
   void _stop() {
+    final changed = holding || progress != 0;
     holding = false;
     progress = 0;
     _raf?.cancel();
+    if (changed) _notifier.notify();
   }
 
   void _showHint() {
-    _clearHint();
+    _clearHint(notify: false);
     hintVisible = true;
     _hintTimer = Timer(Duration(milliseconds: options.hintMs ?? _defaultHintMs),
         () {
       hintVisible = false;
       _hintTimer = null;
+      _notifier.notify();
     });
   }
 
-  void _clearHint() {
+  void _clearHint({bool notify = true}) {
     if (_hintTimer != null) {
       _hintTimer!.cancel();
       _hintTimer = null;
     }
+    final changed = hintVisible;
     hintVisible = false;
+    if (changed && notify) _notifier.notify();
   }
 
   double _duration() =>

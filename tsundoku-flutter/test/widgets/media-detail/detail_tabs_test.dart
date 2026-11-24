@@ -127,4 +127,18 @@ void main() {
     await tester.pumpAndSettle();
     expect(active, SubTab.overview);
   });
+
+  testWidgets('tabAlignment.start: первый таб «Обзор» без отступа слева',
+      (tester) async {
+    await pumpTabs(
+      tester,
+      active: SubTab.overview,
+      mediaType: 'tvshow',
+    );
+
+    final tabBarLeft = tester.getTopLeft(find.byType(TabBar)).dx;
+    final overviewLeft = tester.getTopLeft(find.text('Обзор')).dx;
+    // Только внутренний labelPadding (12px), без 52px startOffset.
+    expect(overviewLeft - tabBarLeft, closeTo(12.0, 1.0));
+  });
 }

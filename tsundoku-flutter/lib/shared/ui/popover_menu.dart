@@ -88,7 +88,6 @@ class PopoverCoordinator {
 }
 
 const double _edge = 8;
-const double _defaultPopoverHeight = 220;
 const double _gapBelowTrigger = 8;
 
 /// Поповер-меню с привязкой к триггеру. Триггер передаётся как builder —
@@ -195,44 +194,6 @@ class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
     return _lastKnownTriggerRect;
   }
 
-  /// Позиция поповера 1-в-1 с placePopover() из исходника (viewport-координаты,
-  /// EDGE=8 clamp, флип вверх при нехватке места снизу). Никогда не фолбэчится в (0, 0).
-  Offset _place(Size size, Rect? triggerRect, BuildContext menuContext) {
-    final viewport = MediaQuery.sizeOf(menuContext);
-    final width = widget.matchTriggerWidth
-        ? (triggerRect?.width ?? size.width)
-        : size.width;
-    final height = size.height > 0 ? size.height : _defaultPopoverHeight;
-
-    if (triggerRect == null || (triggerRect.width == 0 && triggerRect.height == 0)) {
-      final fallbackLeft =
-          ((viewport.width - width) / 2).clamp(_edge, (viewport.width - width - _edge).clamp(_edge, double.infinity));
-      final fallbackTop =
-          (56.0 + _gapBelowTrigger).clamp(_edge, (viewport.height - height - _edge).clamp(_edge, double.infinity));
-      return Offset(fallbackLeft, fallbackTop);
-    }
-
-    final rect = triggerRect;
-    var left = switch (widget.placement) {
-      PopoverPlacement.bottomEnd => rect.right - width,
-      PopoverPlacement.bottom => rect.left + rect.width / 2 - width / 2,
-      _ => rect.left,
-    };
-    left = left.clamp(_edge, (viewport.width - width - _edge).clamp(_edge, double.infinity));
-
-    var top = rect.bottom + _gapBelowTrigger;
-    if (widget.placement == PopoverPlacement.top ||
-        (top + height > viewport.height - _edge &&
-            rect.top - height - _gapBelowTrigger > _edge)) {
-      top = rect.top - height - _gapBelowTrigger;
-    } else if (top + height > viewport.height - _edge) {
-      top = viewport.height - height - _edge;
-    }
-    top = top.clamp(_edge, (viewport.height - height - _edge).clamp(_edge, double.infinity));
-
-    return Offset(left, top);
-  }
-
   /* Hover mode: the cursor has to cross the gap between trigger and menu, so
      the close is deferred and cancelled again as soon as the menu is entered. */
   void _scheduleClose() {
@@ -289,11 +250,8 @@ class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
       controller: _portalController,
       overlayChildBuilder: (menuContext) {
         final triggerRect = _triggerRect(menuContext);
-        final defaultW = widget.matchTriggerWidth ? (triggerRect?.width ?? 140.0) : 140.0;
-        final size = Size(defaultW, _defaultPopoverHeight);
-        final position = _place(size, triggerRect, menuContext);
         final width = widget.matchTriggerWidth
-            ? triggerRect?.width ?? defaultW
+            ? (triggerRect?.width ?? 140.0)
             : null;
 
         final menu = Material(
@@ -348,22 +306,21 @@ class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
         return TapRegion(
           groupId: widget.id,
           onTapOutside: (_) => _hide(),
-          child: Stack(
-            children: [
-              Positioned(
-                left: position.dx,
-                top: position.dy,
-                child: MouseRegion(
-                  onEnter: (_) {
-                    if (widget.openOnHover) _cancelPendingClose();
-                  },
-                  onExit: (_) {
-                    if (widget.openOnHover) _scheduleClose();
-                  },
-                  child: menu,
-                ),
-              ),
-            ],
+          child: CustomSingleChildLayout(
+            delegate: _PopoverLayoutDelegate(
+              triggerRect: triggerRect,
+              placement: widget.placement,
+              matchTriggerWidth: widget.matchTriggerWidth,
+            ),
+            child: MouseRegion(
+              onEnter: (_) {
+                if (widget.openOnHover) _cancelPendingClose();
+              },
+              onExit: (_) {
+                if (widget.openOnHover) _scheduleClose();
+              },
+              child: menu,
+            ),
           ),
         );
       },
@@ -540,5 +497,77 @@ class TsundokuSelect<T> extends StatelessWidget {
       ),
       ),
     );
+  }
+}
+
+/// Measures the popover menu first and places it relative to [triggerRect]
+/// using its actual laid-out [childSize] so `bottomEnd`, `bottom`, and `top`
+/// placements align without overflowing the viewport.
+class _PopoverLayoutDelegate extends SingleChildLayoutDelegate {
+  final Rect? triggerRect;
+  final PopoverPlacement placement;
+  final bool matchTriggerWidth;
+
+  const _PopoverLayoutDelegate({
+    required this.triggerRect,
+    required this.placement,
+    required this.matchTriggerWidth,
+  });
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
+    final maxW =
+        (constraints.maxWidth - 2 * _edge).clamp(0.0, constraints.maxWidth);
+    final maxH =
+        (constraints.maxHeight - 2 * _edge).clamp(0.0, constraints.maxHeight);
+    if (matchTriggerWidth && triggerRect != null) {
+      final w = triggerRect!.width.clamp(0.0, maxW);
+      return BoxConstraints(minWidth: w, maxWidth: w, maxHeight: maxH);
+    }
+    return BoxConstraints(maxWidth: maxW, maxHeight: maxH);
+  }
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) {
+    final width = childSize.width;
+    final height = childSize.height;
+
+    if (triggerRect == null ||
+        (triggerRect!.width == 0 && triggerRect!.height == 0)) {
+      final fallbackLeft = ((size.width - width) / 2).clamp(
+          _edge, (size.width - width - _edge).clamp(_edge, double.infinity));
+      final fallbackTop = (56.0 + _gapBelowTrigger).clamp(
+          _edge, (size.height - height - _edge).clamp(_edge, double.infinity));
+      return Offset(fallbackLeft, fallbackTop);
+    }
+
+    final rect = triggerRect!;
+    var left = switch (placement) {
+      PopoverPlacement.bottomEnd => rect.right - width,
+      PopoverPlacement.bottom => rect.left + rect.width / 2 - width / 2,
+      _ => rect.left,
+    };
+    left = left.clamp(
+        _edge, (size.width - width - _edge).clamp(_edge, double.infinity));
+
+    var top = rect.bottom + _gapBelowTrigger;
+    if (placement == PopoverPlacement.top ||
+        (top + height > size.height - _edge &&
+            rect.top - height - _gapBelowTrigger > _edge)) {
+      top = rect.top - height - _gapBelowTrigger;
+    } else if (top + height > size.height - _edge) {
+      top = size.height - height - _edge;
+    }
+    top = top.clamp(
+        _edge, (size.height - height - _edge).clamp(_edge, double.infinity));
+
+    return Offset(left, top);
+  }
+
+  @override
+  bool shouldRelayout(_PopoverLayoutDelegate oldDelegate) {
+    return triggerRect != oldDelegate.triggerRect ||
+        placement != oldDelegate.placement ||
+        matchTriggerWidth != oldDelegate.matchTriggerWidth;
   }
 }

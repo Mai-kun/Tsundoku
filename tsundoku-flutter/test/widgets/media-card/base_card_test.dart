@@ -12,7 +12,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tsundoku_flutter/shared/api/api.dart';
 import 'package:tsundoku_flutter/shared/types/enums.dart';
 import 'package:tsundoku_flutter/shared/types/models.dart';
-import 'package:tsundoku_flutter/shared/ui/confirm_dialog.dart';
 import 'package:tsundoku_flutter/shared/ui/context_menu_controller.dart';
 import 'package:tsundoku_flutter/widgets/media-card/base_card.dart';
 import 'package:tsundoku_flutter/widgets/media-card/card_types.dart';
@@ -244,7 +243,7 @@ void main() {
     expect(statusCalls, [MediaStatus.completed]);
   });
 
-  testWidgets('удаление: hover → кнопка → confirm → settle(true) → onDelete',
+  testWidgets('кнопка удаления на карточке отсутствует; удаление работает через контекст-меню',
       (tester) async {
     await pumpCard(tester);
     final center = tester.getCenter(find.byType(BaseCard));
@@ -255,54 +254,27 @@ void main() {
     await gesture.moveTo(center);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(LucideIcons.trash2));
+    expect(find.bySemanticsLabel(RegExp('Удалить')), findsNothing);
+
+    await tester.tap(find.byType(BaseCard), buttons: kSecondaryButton);
     await tester.pump();
-
-    // Confirm-диалог открыт (ключ delete-media).
-    final pending = container.read(confirmDialogProvider).current;
-    expect(pending, isNotNull);
-    expect(pending!.request.key, 'delete-media');
-
-    await container.read(confirmDialogProvider.notifier).settle(
-        true, ConfirmRemember.none);
+    final state = container.read(contextMenuStoreProvider);
+    final deleteItem = state.items.firstWhere((i) => i.id == 'delete');
+    await Future<void>.sync(() => deleteItem.action!());
     await tester.pumpAndSettle();
     expect(deleteCount, 1);
   });
 
-  testWidgets('settle(false) → onDelete не вызывается', (tester) async {
-    await pumpCard(tester);
-    final center = tester.getCenter(find.byType(BaseCard));
-    final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse, pointer: 7);
-    await gesture.addPointer(location: center);
-    addTearDown(gesture.removePointer);
-    await gesture.moveTo(center);
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byIcon(LucideIcons.trash2));
-    await tester.pump();
-    await container.read(confirmDialogProvider.notifier).settle(
-        false, ConfirmRemember.none);
-    await tester.pumpAndSettle();
-    expect(deleteCount, 0);
-  });
-
-  testWidgets('ошибка удаления → alert-оверлей с errorMessage',
+  testWidgets('ошибка удаления через контекст-меню → alert-оверлей с errorMessage',
       (tester) async {
     deleteError = Exception('boom');
     await pumpCard(tester);
-    final center = tester.getCenter(find.byType(BaseCard));
-    final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse, pointer: 7);
-    await gesture.addPointer(location: center);
-    addTearDown(gesture.removePointer);
-    await gesture.moveTo(center);
-    await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(LucideIcons.trash2));
+    await tester.tap(find.byType(BaseCard), buttons: kSecondaryButton);
     await tester.pump();
-    await container.read(confirmDialogProvider.notifier).settle(
-        true, ConfirmRemember.none);
+    final state = container.read(contextMenuStoreProvider);
+    final deleteItem = state.items.firstWhere((i) => i.id == 'delete');
+    await Future<void>.sync(() => deleteItem.action!());
     await tester.pumpAndSettle();
 
     // Alert-оверлей: без текста Exception — errors.unexpected.

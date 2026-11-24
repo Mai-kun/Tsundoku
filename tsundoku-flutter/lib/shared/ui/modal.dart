@@ -148,3 +148,59 @@ class TsundokuModal extends StatelessWidget {
     );
   }
 }
+
+/// Top-layer mounting для [TsundokuModal]: рендерит [modal] в ближайшем
+/// полноэкранном [Overlay] поверх скролл-контейнеров и узких колонок.
+class TsundokuOverlayModal extends StatefulWidget {
+  final bool isOpen;
+  final Widget modal;
+
+  const TsundokuOverlayModal({
+    super.key,
+    required this.isOpen,
+    required this.modal,
+  });
+
+  @override
+  State<TsundokuOverlayModal> createState() => _TsundokuOverlayModalState();
+}
+
+class _TsundokuOverlayModalState extends State<TsundokuOverlayModal> {
+  final OverlayPortalController _portal = OverlayPortalController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isOpen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && widget.isOpen && !_portal.isShowing) {
+          _portal.show();
+        }
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant TsundokuOverlayModal oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isOpen != oldWidget.isOpen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (widget.isOpen && !_portal.isShowing) {
+          _portal.show();
+        } else if (!widget.isOpen && _portal.isShowing) {
+          _portal.hide();
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return OverlayPortal(
+      controller: _portal,
+      overlayChildBuilder: (_) => widget.modal,
+      child: const SizedBox.shrink(),
+    );
+  }
+}

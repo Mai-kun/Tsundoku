@@ -9,6 +9,7 @@ import 'package:tsundoku_flutter/shared/api/offline_mode.dart';
 import 'dart:convert';
 
 import 'package:tsundoku_flutter/shared/i18n/index.dart';
+import 'package:tsundoku_flutter/shared/ui/button.dart';
 import 'package:tsundoku_flutter/widgets/layout/header.dart';
 
 class _NoopJobs extends JobsClientController {
@@ -134,5 +135,23 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     await tester.tap(find.byIcon(LucideIcons.search));
     expect(searched, 1);
+  });
+
+  testWidgets('поиск в Header имеет высоту 36px без нижнего падинга в Tooltip',
+      (tester) async {
+    await pumpHeader(tester);
+    final searchButtonFinder = find.ancestor(
+      of: find.text('Поиск тайтлов'),
+      matching: find.byType(TsundokuButton),
+    );
+    final searchTooltipFinder = find.ancestor(
+      of: searchButtonFinder,
+      matching: find.byType(Tooltip),
+    );
+    final buttonRect = tester.getRect(searchButtonFinder);
+    final tooltipRect = tester.getRect(searchTooltipFinder);
+    expect(buttonRect.height, 36.0);
+    expect(tooltipRect.height, 36.0);
+    expect(tooltipRect.bottom, buttonRect.bottom);
   });
 }

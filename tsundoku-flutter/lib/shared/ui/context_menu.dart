@@ -91,6 +91,7 @@ class _ContextMenuState extends ConsumerState<ContextMenu> {
   );
 
   List<MenuItem> _lastItems = const <MenuItem>[];
+  bool _wasOpen = false;
 
   @override
   void dispose() {
@@ -151,12 +152,13 @@ class _ContextMenuState extends ConsumerState<ContextMenu> {
     final t = ref.watch(tProvider);
 
     // $effect(isOpen): сброс hold/подменю + позиционирование после кадра.
-    if (state.isOpen && !identical(state.items, _lastItems)) {
+    if (state.isOpen && (!_wasOpen || !identical(state.items, _lastItems))) {
       _lastItems = state.items;
       _resetForOpen(state);
     } else if (!state.isOpen && _isPositioned) {
       _isPositioned = false;
     }
+    _wasOpen = state.isOpen;
 
     if (!state.isOpen) return const SizedBox.shrink();
 
@@ -176,36 +178,38 @@ class _ContextMenuState extends ConsumerState<ContextMenu> {
           top: position.dy,
           child: Opacity(
             opacity: isPositioned ? 1.0 : 0.0, // visibility hidden до позиции
-            child: _MenuPanel(
-              items: state.items,
-              deletingLabel: t.tr('holdToDelete.deleting'),
-              hintLabel: t.tr('holdToDelete.hint'),
-              title: t.tr('contextMenu.title'),
-              onEscape: _closeMenu,
-              expandedSubmenu: _expandedSubmenu,
-              openSubmenuToLeft: _openSubmenuToLeft,
-              onSubmenuToggle: (id) {
-                setState(() {
-                  _expandedSubmenu = _expandedSubmenu == id ? null : id;
-                });
-              },
-              onSubmenuClose: () {
-                setState(() => _expandedSubmenu = null);
-                _closeMenu();
-              },
-              onHoverReset: () {
-                setState(() => _expandedSubmenu = null);
-              },
-              heldItemId: _heldItemId,
-              hintItemId: _hintItemId,
-              menuHold: _menuHold,
-              heldItem: _heldItem,
-              onHoldStart: (item) {
-                _heldItem = item;
-                _heldItemId = item.id;
-                _menuHold.press();
-              },
-              onHoldRelease: () => _menuHold.release(),
+            child: ListenableBuilder(
+              listenable: _menuHold.changes,
+              builder: (context, _) => _MenuPanel(
+                items: state.items,
+                deletingLabel: t.tr('holdToDelete.deleting'),
+                hintLabel: t.tr('holdToDelete.hint'),
+                title: t.tr('contextMenu.title'),
+                onEscape: _closeMenu,
+                expandedSubmenu: _expandedSubmenu,
+                openSubmenuToLeft: _openSubmenuToLeft,
+                onSubmenuToggle: (id) {
+                  setState(() {
+                    _expandedSubmenu = _expandedSubmenu == id ? null : id;
+                  });
+                },
+                onSubmenuClose: () {
+                  setState(() => _expandedSubmenu = null);
+                  _closeMenu();
+                },
+                heldItemId: _heldItemId,
+                hintItemId: _hintItemId,
+                menuHold: _menuHold,
+                heldItem: _heldItem,
+                onHoldStart: (item) {
+                  setState(() {
+                    _heldItem = item;
+                    _heldItemId = item.id;
+                  });
+                  _menuHold.press();
+                },
+                onHoldRelease: () => _menuHold.release(),
+              ),
             ),
           ),
         ),
@@ -225,7 +229,6 @@ class _MenuPanel extends StatelessWidget {
   final bool openSubmenuToLeft;
   final void Function(String id) onSubmenuToggle;
   final void Function() onSubmenuClose;
-  final void Function() onHoverReset;
   final String? heldItemId;
   final String? hintItemId;
   final HoldToDeleteController menuHold;
@@ -243,7 +246,6 @@ class _MenuPanel extends StatelessWidget {
     required this.openSubmenuToLeft,
     required this.onSubmenuToggle,
     required this.onSubmenuClose,
-    required this.onHoverReset,
     required this.heldItemId,
     required this.hintItemId,
     required this.menuHold,
@@ -301,8 +303,6 @@ class _MenuPanel extends StatelessWidget {
     if (isSubmenu) {
       return _SubmenuWrapper(
         isExpanded: isExpanded,
-        onEnter: () => onSubmenuToggle(item.id),
-        onExit: () => onHoverReset(),
         flyoutLeft: openSubmenuToLeft,
         trigger: _MenuItemButton(
           label: item.label ?? '',
@@ -338,7 +338,6 @@ class _MenuPanel extends StatelessWidget {
         holding: menuHold.holding,
         onHoldStart: () => onHoldStart(item),
         onHoldRelease: onHoldRelease,
-        onHoverReset: onHoverReset,
         deletingLabel: deletingLabel,
         hintLabel: hintLabel,
       );
@@ -353,7 +352,6 @@ class _MenuPanel extends StatelessWidget {
         item.action?.call();
         onSubmenuClose();
       },
-      onHoverReset: onHoverReset,
     );
   }
 }
@@ -380,7 +378,6 @@ class _MenuItemButton extends StatelessWidget {
   final bool showChevron;
   final bool isSubmenuChild;
   final VoidCallback? onTap;
-  final void Function()? onHoverReset;
 
   const _MenuItemButton({
     required this.label,
@@ -391,7 +388,6 @@ class _MenuItemButton extends StatelessWidget {
     this.active = false,
     this.showChevron = false,
     this.isSubmenuChild = false,
-    this.onHoverReset,
   });
 
   @override
@@ -412,9 +408,6 @@ class _MenuItemButton extends StatelessWidget {
             cursor: disabled
                 ? SystemMouseCursors.basic
                 : SystemMouseCursors.click,
-            onEnter: onHoverReset == null
-                ? null
-                : (_) => onHoverReset!(),
             child: Padding(
               // padding: 7px 10px (или 6px 10px для подменю):
               padding: EdgeInsets.symmetric(
@@ -451,16 +444,12 @@ class _MenuItemButton extends StatelessWidget {
 
 class _SubmenuWrapper extends StatelessWidget {
   final bool isExpanded;
-  final VoidCallback onEnter;
-  final VoidCallback onExit;
   final bool flyoutLeft;
   final Widget trigger;
   final List<Widget> children;
 
   const _SubmenuWrapper({
     required this.isExpanded,
-    required this.onEnter,
-    required this.onExit,
     required this.flyoutLeft,
     required this.trigger,
     required this.children,
@@ -468,27 +457,23 @@ class _SubmenuWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => onEnter(),
-      onExit: (_) => onExit(),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          trigger,
-          // Решение #24: inline-раскрытие подменю вместо absolute-flyout —
-          // flyout с точными viewport-координатами отложен до Фазы 2 сетки.
-          if (isExpanded)
-            Padding(
-              padding: const EdgeInsets.only(left: 12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: children,
-              ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        trigger,
+        // Решение #24: inline-раскрытие подменю вместо absolute-flyout —
+        // flyout с точными viewport-координатами отложен до Фазы 2 сетки.
+        if (isExpanded)
+          Padding(
+            padding: const EdgeInsets.only(left: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: children,
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }
@@ -503,7 +488,6 @@ class _HoldToDeleteMenuItem extends StatelessWidget {
   final bool holding;
   final VoidCallback onHoldStart;
   final VoidCallback onHoldRelease;
-  final VoidCallback onHoverReset;
   final String deletingLabel;
   final String hintLabel;
 
@@ -519,7 +503,6 @@ class _HoldToDeleteMenuItem extends StatelessWidget {
     required this.hintLabel,
     required this.onHoldStart,
     required this.onHoldRelease,
-      required this.onHoverReset,
   });
 
   @override
@@ -531,53 +514,62 @@ class _HoldToDeleteMenuItem extends StatelessWidget {
             : item.label ?? '';
     return Opacity(
       opacity: item.disabled ? 0.4 : 1.0,
-      child: Stack(
-        children: [
-          // hold fill: bg-danger/30 origin-left.
-          if (isHeld)
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Stack(
+          children: [
+            // hold fill: bg-danger/30 origin-left (всегда в дереве, чтобы не сбивать slot у MouseRegion/Listener).
             Positioned.fill(
               child: IgnorePointer(
                 child: FractionallySizedBox(
                   alignment: Alignment.centerLeft,
-                  widthFactor: progress.clamp(0.0, 1.0),
-                  child: Container(color: const Color(0x4DB92B42)),
+                  widthFactor: (isHeld ? progress : 0.0).clamp(0.0, 1.0),
+                  child: Container(color: const Color(0x59F43F5E)),
                 ),
               ),
             ),
-          GestureDetector(
-            onLongPressStart: (_) => onHoldStart(),
-            onLongPressEnd: (_) => onHoldRelease(),
-            onLongPressCancel: onHoldRelease,
-            child: Material(
-              color: Colors.transparent,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 7, horizontal: 10),
-                child: Row(
-                  children: [
-                    if (icon != null)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 10),
-                        child: Icon(icon,
-                            size: 15,
-                            color: isDanger ? _dangerText : _iconColor),
-                      ),
-                    Expanded(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 13,
-                            color: isDanger ? _dangerText : _itemText),
-                      ),
+            MouseRegion(
+              cursor: item.disabled
+                  ? SystemMouseCursors.basic
+                  : SystemMouseCursors.click,
+              onExit: (_) => onHoldRelease(),
+              child: Listener(
+                behavior: HitTestBehavior.opaque,
+                onPointerDown: item.disabled ? null : (_) => onHoldStart(),
+                onPointerUp: item.disabled ? null : (_) => onHoldRelease(),
+                onPointerCancel: item.disabled ? null : (_) => onHoldRelease(),
+                child: Material(
+                  color: Colors.transparent,
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 7, horizontal: 10),
+                    child: Row(
+                      children: [
+                        if (icon != null)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 10),
+                            child: Icon(icon,
+                                size: 15,
+                                color: isDanger ? _dangerText : _iconColor),
+                          ),
+                        Expanded(
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 13,
+                                color: isDanger ? _dangerText : _itemText),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

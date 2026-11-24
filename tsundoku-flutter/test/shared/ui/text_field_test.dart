@@ -66,4 +66,35 @@ void main() {
     expect(find.byKey(const Key('prefix-search')), findsOneWidget);
     expect(find.byKey(const Key('suffix-clear')), findsOneWidget);
   });
+
+  testWidgets('TsundokuTextField: custom 40px height constrains InputDecoration container',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: TsundokuTextField(
+            height: 40,
+            placeholder: 'Search...',
+          ),
+        ),
+      ),
+    ));
+
+    await tester.pumpAndSettle();
+
+    final textField = tester.widget<TextField>(find.byType(TextField));
+    expect(
+      textField.decoration?.constraints,
+      const BoxConstraints(minHeight: 40, maxHeight: 40),
+    );
+    expect(textField.textAlignVertical, TextAlignVertical.center);
+    expect(tester.getRect(find.byType(InputDecorator)).height, 40.0);
+    expect(
+      find.byType(InputDecorator),
+      paints
+        ..rrect(
+          rrect: RRect.fromLTRBR(0, 0, 800, 40, const Radius.circular(8)),
+        ),
+    );
+  });
 }

@@ -9,6 +9,8 @@ import 'package:tsundoku_flutter/shared/i18n/index.dart';
 import 'package:tsundoku_flutter/shared/theme/tsundoku_theme.dart';
 import 'package:tsundoku_flutter/shared/types/models.dart';
 import 'package:tsundoku_flutter/views/stats_view.dart';
+import 'package:tsundoku_flutter/widgets/stats/rating_psychology.dart';
+import 'package:tsundoku_flutter/widgets/stats/time_distribution_donut.dart';
 
 AdvancedStats _makeStats() {
   return AdvancedStats.fromJson(<String, dynamic>{
@@ -234,5 +236,90 @@ void main() {
 
     // CriticalDivergenceCard
     expect(find.text('Я против всего мира'), findsOneWidget);
+  });
+
+  testWidgets('блоки распределения времени и психологии оценок имеют равную высоту, а кнопки табов единый размер',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final api = _StubStatsApi();
+    await pumpStatsView(tester, api: api, width: 1200);
+    await tester.pumpAndSettle();
+
+    final donutCard = find.ancestor(
+      of: find.byType(TimeDistributionDonut),
+      matching: find.byType(Container),
+    ).first;
+    final ratingCard = find.ancestor(
+      of: find.byType(RatingPsychology),
+      matching: find.byType(Container),
+    ).first;
+    expect(
+      tester.getRect(donutCard).height,
+      closeTo(tester.getRect(ratingCard).height, 0.5),
+    );
+
+    final summaryBtn = find.ancestor(
+      of: find.text('Сводка'),
+      matching: find.byType(AnimatedContainer),
+    ).first;
+    final tasteBtn = find.ancestor(
+      of: find.text('Профиль вкуса'),
+      matching: find.byType(AnimatedContainer),
+    ).first;
+    final completedBtn = find.ancestor(
+      of: find.text('✓ Только завершённые'),
+      matching: find.byType(AnimatedContainer),
+    ).first;
+    final allBtn = find.ancestor(
+      of: find.text('⚡ Все с прогрессом'),
+      matching: find.byType(AnimatedContainer),
+    ).first;
+
+    final summaryRect = tester.getRect(summaryBtn);
+    final tasteRect = tester.getRect(tasteBtn);
+    final completedRect = tester.getRect(completedBtn);
+    final allRect = tester.getRect(allBtn);
+
+    expect(summaryRect.height, 36.0);
+    expect(tasteRect.height, 36.0);
+    expect(completedRect.height, 36.0);
+    expect(allRect.height, 36.0);
+    expect(summaryRect.width, closeTo(tasteRect.width, 0.5));
+    expect(completedRect.width, closeTo(allRect.width, 0.5));
+  });
+
+  testWidgets('вкладка "Профиль вкуса": EraAffinityCard и GenreRadarChart имеют равную высоту на десктопе',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final api = _StubStatsApi(
+      onGetProfile: (_) => Future.value(_makeProfile()),
+    );
+
+    await pumpStatsView(tester, api: api, width: 1200);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Профиль вкуса'));
+    await tester.pumpAndSettle();
+
+    final radarRect = tester.getRect(find.text('Радар вкуса').hitTestable());
+    expect(radarRect.height, greaterThan(0));
+    final radarCard = find.byWidgetPredicate(
+      (w) => w.runtimeType.toString() == 'GenreRadarChart',
+    );
+    final eraCard = find.byWidgetPredicate(
+      (w) => w.runtimeType.toString() == 'EraAffinityCard',
+    );
+    expect(
+      tester.getRect(eraCard).height,
+      closeTo(tester.getRect(radarCard).height, 0.5),
+    );
   });
 }

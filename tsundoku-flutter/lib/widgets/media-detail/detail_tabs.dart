@@ -89,6 +89,7 @@ class _DetailTabsState extends ConsumerState<DetailTabs>
           TabBar(
             controller: _controller,
             isScrollable: true,
+            tabAlignment: TabAlignment.start,
             onTap: (index) => widget.onSelect(_tabs[index]),
             dividerColor: Colors.white.withAlpha(21), // border-white/[0.08]
             indicatorSize: TabBarIndicatorSize.label,

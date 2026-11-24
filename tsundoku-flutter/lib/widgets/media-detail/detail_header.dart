@@ -443,9 +443,8 @@ class _RatingBadgeWidgetState extends State<_RatingBadgeWidget> {
                     child: AnimatedSlide(
                       duration: const Duration(milliseconds: 200),
                       offset: _hovered ? Offset.zero : const Offset(0, 1),
-                      child: Container(
+                      child: SizedBox(
                         height: 36,
-                        color: Colors.black.withAlpha(115), // bg-black/45
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           mainAxisSize: MainAxisSize.max,

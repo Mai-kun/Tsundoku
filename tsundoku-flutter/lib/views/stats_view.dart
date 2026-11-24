@@ -159,6 +159,9 @@ class _StatsViewState extends ConsumerState<StatsView> {
 
                   final tabList = TsundokuSegmentedControl<_StatsTab>(
                     value: _activeTab,
+                    equalWidth: true,
+                    expand: !isSm,
+                    itemHeight: 36,
                     options: [
                       SegmentedOption(
                         value: _StatsTab.summary,
@@ -176,6 +179,9 @@ class _StatsViewState extends ConsumerState<StatsView> {
 
                   final scopeRadios = TsundokuSegmentedControl<String>(
                     value: currentScope,
+                    equalWidth: true,
+                    expand: !isSm,
+                    itemHeight: 36,
                     options: [
                       SegmentedOption(
                         value: 'completed',
@@ -232,39 +238,48 @@ class _StatsViewState extends ConsumerState<StatsView> {
                     builder: (context, constraints) {
                       final isLg = constraints.maxWidth >= 1024; // lg:grid-cols-12
                       if (isLg) {
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              flex: 7,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF151A26),
-                                  border: Border.all(
-                                    color: Colors.white.withAlpha(13),
+                        final donutInnerWidth =
+                            (constraints.maxWidth - 24) * 7 / 12 - 40;
+                        return IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                flex: 7,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF151A26),
+                                    border: Border.all(
+                                      color: Colors.white.withAlpha(13),
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                padding: const EdgeInsets.all(20),
-                                child: TimeDistributionDonut(stats: _stats!),
-                              ),
-                            ),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              flex: 5,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF151A26),
-                                  border: Border.all(
-                                    color: Colors.white.withAlpha(13),
+                                  padding: const EdgeInsets.all(20),
+                                  child: Center(
+                                    child: TimeDistributionDonut(
+                                      stats: _stats!,
+                                      isSmLayout: donutInnerWidth >= 480,
+                                    ),
                                   ),
-                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                padding: const EdgeInsets.all(20),
-                                child: RatingPsychology(stats: _stats!),
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 24),
+                              Expanded(
+                                flex: 5,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF151A26),
+                                    border: Border.all(
+                                      color: Colors.white.withAlpha(13),
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.all(20),
+                                  child: RatingPsychology(stats: _stats!),
+                                ),
+                              ),
+                            ],
+                          ),
                         );
                       } else {
                         return Column(
@@ -336,17 +351,19 @@ class _StatsViewState extends ConsumerState<StatsView> {
                     builder: (context, constraints) {
                       final isLg = constraints.maxWidth >= 1024; // lg:grid-cols-2
                       if (isLg) {
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: GenreRadarChart(axes: _profile!.genreRadar),
-                            ),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              child: EraAffinityCard(eras: _profile!.eraAffinity),
-                            ),
-                          ],
+                        return IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: GenreRadarChart(axes: _profile!.genreRadar),
+                              ),
+                              const SizedBox(width: 24),
+                              Expanded(
+                                child: EraAffinityCard(eras: _profile!.eraAffinity),
+                              ),
+                            ],
+                          ),
                         );
                       } else {
                         return Column(

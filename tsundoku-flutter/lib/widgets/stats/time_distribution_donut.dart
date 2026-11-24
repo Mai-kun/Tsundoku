@@ -18,8 +18,13 @@ import 'package:tsundoku_flutter/widgets/stats/stats_hero_banner.dart';
 
 class TimeDistributionDonut extends ConsumerWidget {
   final AdvancedStats stats;
+  final bool? isSmLayout;
 
-  const TimeDistributionDonut({super.key, required this.stats});
+  const TimeDistributionDonut({
+    super.key,
+    required this.stats,
+    this.isSmLayout,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -92,10 +97,7 @@ class TimeDistributionDonut extends ConsumerWidget {
                 ))
             .toList();
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isSm = constraints.maxWidth >= 480;
-
+    Widget buildContent(bool isSm) {
         Widget buildCategoryCard(
           ({
             String id,
@@ -281,7 +283,13 @@ class TimeDistributionDonut extends ConsumerWidget {
             ],
           );
         }
-      },
+    }
+
+    if (isSmLayout != null) {
+      return buildContent(isSmLayout!);
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) => buildContent(constraints.maxWidth >= 480),
     );
   }
 }

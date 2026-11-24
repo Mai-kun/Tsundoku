@@ -70,4 +70,58 @@ void main() {
     final textWidget = tester.widget<Text>(opt1Finder);
     expect(textWidget.style?.fontSize, 14);
   });
+
+  testWidgets('PopoverPlacement.bottomEnd aligns menu right edge with trigger right edge',
+      (tester) async {
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const triggerOffset = Offset(720, 96);
+    const triggerSize = Size(40, 40);
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Stack(
+          children: [
+            Positioned(
+              left: triggerOffset.dx,
+              top: triggerOffset.dy,
+              width: triggerSize.width,
+              height: triggerSize.height,
+              child: TsundokuPopoverMenu<String>(
+                id: 'bottom-end-popover',
+                placement: PopoverPlacement.bottomEnd,
+                options: const [
+                  PopoverOption(value: 'updated', label: 'По дате обновления'),
+                  PopoverOption(value: 'created', label: 'По дате добавления'),
+                ],
+                selected: 'updated',
+                onSelect: (_) {},
+                label: 'Sort',
+                trigger: (context, ctx) => Container(
+                  key: const Key('trigger-end'),
+                  color: Colors.blue,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ));
+
+    await tester.tap(find.byKey(const Key('trigger-end')));
+    await tester.pumpAndSettle();
+
+    final menuMaterial = find.descendant(
+      of: find.byType(CustomSingleChildLayout),
+      matching: find.byType(Material),
+    ).first;
+    final menuRect = tester.getRect(menuMaterial);
+    final triggerRight = triggerOffset.dx + triggerSize.width;
+    expect(menuRect.right, closeTo(triggerRight, 0.5));
+    expect(menuRect.left, lessThan(triggerOffset.dx));
+    expect(menuRect.right, lessThanOrEqualTo(800 - 8));
+  });
 }

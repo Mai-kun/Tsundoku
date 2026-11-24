@@ -99,8 +99,8 @@ class ListsViewState extends ConsumerState<ListsView> {
   CustomListDetail? _selected;
   bool _loading = true;
   String _error = '';
-  bool _modalOpen = false;
-  bool _importOpen = false;
+  OverlayEntry? _createOverlay;
+  OverlayEntry? _importOverlay;
   CustomListSummary? _editing;
   final Set<String> _brokenCovers = {};
 
@@ -108,6 +108,23 @@ class ListsViewState extends ConsumerState<ListsView> {
   void initState() {
     super.initState();
     _loadLists();
+  }
+
+  @override
+  void dispose() {
+    _closeCreateOverlay();
+    _closeImportOverlay();
+    super.dispose();
+  }
+
+  void _closeCreateOverlay() {
+    _createOverlay?.remove();
+    _createOverlay = null;
+  }
+
+  void _closeImportOverlay() {
+    _importOverlay?.remove();
+    _importOverlay = null;
   }
 
   void _markBroken(String url) {
@@ -236,10 +253,36 @@ class ListsViewState extends ConsumerState<ListsView> {
       widget.onOpenCreateList!(list);
       return;
     }
-    setState(() {
-      _editing = list;
-      _modalOpen = true;
-    });
+    _closeCreateOverlay();
+    _editing = list;
+    final entry = OverlayEntry(
+      builder: (overlayContext) => Positioned.fill(
+        child: Material(
+          type: MaterialType.transparency,
+          child: widget.createListModalBuilder != null
+              ? widget.createListModalBuilder!(
+                  overlayContext,
+                  _editing,
+                  _closeCreateOverlay,
+                  () {
+                    _closeCreateOverlay();
+                    _loadLists();
+                  },
+                )
+              : CreateListModal(
+                  isOpen: true,
+                  list: _editing,
+                  onClose: _closeCreateOverlay,
+                  onSaved: () {
+                    _closeCreateOverlay();
+                    _loadLists();
+                  },
+                ),
+        ),
+      ),
+    );
+    _createOverlay = entry;
+    Overlay.of(context, rootOverlay: true).insert(entry);
   }
 
   void openImport() {
@@ -247,7 +290,26 @@ class ListsViewState extends ConsumerState<ListsView> {
       widget.onOpenImport!();
       return;
     }
-    setState(() => _importOpen = true);
+    if (widget.importModalBuilder == null) return;
+    _closeImportOverlay();
+    final entry = OverlayEntry(
+      builder: (overlayContext) => Positioned.fill(
+        child: Material(
+          type: MaterialType.transparency,
+          child: widget.importModalBuilder!(
+            overlayContext,
+            _closeImportOverlay,
+            () {
+              widget.onImportCompleted?.call();
+              _loadLists();
+            },
+            (id) => showImportedList(id),
+          ),
+        ),
+      ),
+    );
+    _importOverlay = entry;
+    Overlay.of(context, rootOverlay: true).insert(entry);
   }
 
   Future<void> removeList(CustomListSummary list) async {
@@ -368,48 +430,10 @@ class ListsViewState extends ConsumerState<ListsView> {
     final locale = ref.watch(i18nProvider);
     final tokens = TsundokuTheme.of(context);
 
-    Widget content;
     if (_selected != null) {
-      content = _buildSelectedView(_selected!, t, locale, tokens);
-    } else {
-      content = _buildListsView(t, locale, tokens);
+      return _buildSelectedView(_selected!, t, locale, tokens);
     }
-
-    return Stack(
-      children: [
-        content,
-        if (_modalOpen)
-          widget.createListModalBuilder != null
-              ? widget.createListModalBuilder!(
-                  context,
-                  _editing,
-                  () => setState(() => _modalOpen = false),
-                  () {
-                    setState(() => _modalOpen = false);
-                    _loadLists();
-                  },
-                )
-              : CreateListModal(
-                  isOpen: true,
-                  list: _editing,
-                  onClose: () => setState(() => _modalOpen = false),
-                  onSaved: () {
-                    setState(() => _modalOpen = false);
-                    _loadLists();
-                  },
-                ),
-        if (_importOpen && widget.importModalBuilder != null)
-          widget.importModalBuilder!(
-            context,
-            () => setState(() => _importOpen = false),
-            () {
-              widget.onImportCompleted?.call();
-              _loadLists();
-            },
-            (id) => showImportedList(id),
-          ),
-      ],
-    );
+    return _buildListsView(t, locale, tokens);
   }
 
   // ── Selected List View ───────────────────────────────────────────────────

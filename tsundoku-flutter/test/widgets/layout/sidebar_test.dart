@@ -97,6 +97,7 @@ void main() {
     expect(find.text('Настройки'), findsOneWidget);
     // Инструменты-лейбл uppercase.
     expect(find.text('ИНСТРУМЕНТЫ'), findsOneWidget);
+    expect(find.byType(Tooltip), findsNothing);
   });
 
   testWidgets('активный пункт — «Главная»: onNavigate по клику', (tester) async {
@@ -119,8 +120,9 @@ void main() {
     await pumpSidebar(tester, activeView: 'home', size: const Size(500, 900));
     // Лейблы скрыты (icons-only): текст пунктов навигации отсутствует.
     expect(find.text('Главная'), findsNothing);
-    // Menu-кнопка есть.
+    // Menu-кнопка есть, hover-подсказок нет.
     expect(find.byIcon(LucideIcons.menu), findsOneWidget);
+    expect(find.byType(Tooltip), findsNothing);
 
     await tester.tap(find.byIcon(LucideIcons.menu));
     await tester.pumpAndSettle();

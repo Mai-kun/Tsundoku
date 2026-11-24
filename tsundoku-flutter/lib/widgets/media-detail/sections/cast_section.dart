@@ -332,11 +332,11 @@ class _CastSectionState extends ConsumerState<CastSection> {
             // Portrait-сетка главных: только целые ряды (anti-orphan rule).
             LayoutBuilder(
               builder: (context, constraints) {
-                // grid grid-cols-3 gap-3
-                final cardWidth = (constraints.maxWidth - 24) / 3;
+                // grid grid-cols-3 with wider horizontal spacing
+                final cardWidth = (constraints.maxWidth - 40) / 3;
                 return Wrap(
-                  spacing: 12, // gap-3
-                  runSpacing: 12,
+                  spacing: 20,
+                  runSpacing: 16,
                   children: [
                     for (final entry in portraitEntries)
                       SizedBox(
@@ -362,7 +362,7 @@ class _CastSectionState extends ConsumerState<CastSection> {
                   for (int i = 0; i < overflowEntries.length; i++) ...[
                     if (i > 0)
                       Divider(
-                        height: 1,
+                        height: 5,
                         thickness: 1,
                         color: Colors.white.withAlpha(13), // divide-white/[0.05]
                       ),
@@ -376,14 +376,14 @@ class _CastSectionState extends ConsumerState<CastSection> {
                   if (!_supportingCollapsed) ...[
                     if (overflowEntries.isNotEmpty)
                       Divider(
-                        height: 1,
+                        height: 5,
                         thickness: 1,
                         color: Colors.white.withAlpha(13), // border-t border-white/[0.05]
                       ),
                     for (int i = 0; i < supporting.length; i++) ...[
                       if (i > 0)
                         Divider(
-                          height: 1,
+                          height: 5,
                           thickness: 1,
                           color: Colors.white.withAlpha(13),
                         ),
@@ -581,8 +581,8 @@ class _PortraitCard extends StatelessWidget {
                                 .openLightbox(entry.voicePhotoUrl, entry.sub);
                           },
                           child: Container(
-                            width: 36, // size-9
-                            height: 36,
+                            width: 50,
+                            height: 50,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
@@ -604,8 +604,8 @@ class _PortraitCard extends StatelessWidget {
                       right: 8,
                       bottom: 8,
                       child: Container(
-                        width: 36, // size-9
-                        height: 36,
+                        width: 50,
+                        height: 50,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: th.bgSurface, // bg-surface
@@ -613,7 +613,7 @@ class _PortraitCard extends StatelessWidget {
                               color: const Color(0xFF12151C), width: 2),
                         ),
                         child: Icon(LucideIcons.user,
-                            size: 14, color: th.textMuted),
+                            size: 18, color: th.textMuted),
                       ),
                     ),
                 ],

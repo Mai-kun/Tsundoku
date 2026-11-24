@@ -331,8 +331,9 @@ class _SidebarState extends ConsumerState<Sidebar> {
           _toolsPortal.hide();
         }
       },
-      child: Tooltip(
-        message: ref.watch(tProvider).tr('navigation.toolsLabel'),
+      child: Semantics(
+        label: ref.watch(tProvider).tr('navigation.toolsLabel'),
+        button: true,
         child: Container(
           width: 40, // h-10 w-10
           height: 40,
@@ -412,40 +413,37 @@ class _NavItemState extends State<_NavItem> {
         onExit: (_) => setState(() => _hovered = false),
         child: GestureDetector(
           onTap: () => widget.onNavigate(widget.view),
-          child: Tooltip(
-            message: widget.label, // title + aria-label
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: _indicatorCurve,
-              height: 40, // h-10
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(6), // rounded-md
-              ),
-              padding: EdgeInsets.symmetric(
-                horizontal: 12, // lg:px-3
-                vertical: widget.py,
-              ),
-              child: Row(
-                children: [
-                  Icon(widget.icon, size: widget.iconSize, color: color),
-                  if (widget.desktop) ...[
-                    const SizedBox(width: 12), // lg:gap-3
-                    Expanded(
-                      child: Text(
-                        widget.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis, // truncate
-                        style: TextStyle(
-                          fontSize: 14, // text-sm
-                          fontWeight: FontWeight.w500, // font-medium
-                          color: color,
-                        ),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: _indicatorCurve,
+            height: 40, // h-10
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(6), // rounded-md
+            ),
+            padding: EdgeInsets.symmetric(
+              horizontal: 12, // lg:px-3
+              vertical: widget.py,
+            ),
+            child: Row(
+              children: [
+                Icon(widget.icon, size: widget.iconSize, color: color),
+                if (widget.desktop) ...[
+                  const SizedBox(width: 12), // lg:gap-3
+                  Expanded(
+                    child: Text(
+                      widget.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis, // truncate
+                      style: TextStyle(
+                        fontSize: 14, // text-sm
+                        fontWeight: FontWeight.w500, // font-medium
+                        color: color,
                       ),
                     ),
-                  ],
+                  ),
                 ],
-              ),
+              ],
             ),
           ),
         ),

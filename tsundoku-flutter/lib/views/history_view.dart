@@ -494,21 +494,24 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
 
   // ── Tab switcher pills ────────────────────────────────────────────────────
   Widget _buildTabSwitcher(I18nDictionary t, TsundokuTheme tokens) {
-    return TsundokuSegmentedControl<String>(
-      value: _activeTab,
-      options: [
-        SegmentedOption(
-          value: 'chronicle',
-          label: t.tr('views.tabChronicle'),
-          icon: LucideIcons.calendarDays,
-        ),
-        SegmentedOption(
-          value: 'activity',
-          label: t.tr('views.tabActivity'),
-          icon: LucideIcons.history,
-        ),
-      ],
-      onChanged: (val) => _switchTab(val),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TsundokuSegmentedControl<String>(
+        value: _activeTab,
+        options: [
+          SegmentedOption(
+            value: 'chronicle',
+            label: t.tr('views.tabChronicle'),
+            icon: LucideIcons.calendarDays,
+          ),
+          SegmentedOption(
+            value: 'activity',
+            label: t.tr('views.tabActivity'),
+            icon: LucideIcons.history,
+          ),
+        ],
+        onChanged: (val) => _switchTab(val),
+      ),
     );
   }
 

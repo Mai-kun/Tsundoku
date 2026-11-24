@@ -365,4 +365,40 @@ void main() {
     expect(find.text('Steins;Gate'), findsNothing);
     expect(find.text('Fullmetal Alchemist'), findsOneWidget);
   });
+
+  testWidgets(
+      'empty state create button opens CreateListModal even inside SingleChildScrollView',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final api = _StubListsApi(onGetLists: () => Future.value(const []));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          apiClientProvider.overrideWithValue(api),
+          tProvider.overrideWithValue(const I18nDictionary(Locale.ru)),
+        ],
+        child: MaterialApp(
+          theme: buildTsundokuTheme(),
+          home: const Material(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: ListsView(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Создать первый список'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Создать список'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -74,10 +75,13 @@ void main() {
           holdToDelete: true,
           action: () => deleted++),
     ]);
-    // Тап (не холд) — не завершает удаление:
+    expect(find.text('Удалить'), findsOneWidget);
+    // Тап (не холд) — не завершает удаление и показывает подсказку:
     await tester.tap(find.text('Удалить'));
     await tester.pump();
     expect(deleted, 0);
+    expect(find.text('Удерживайте 1 сек'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 1600));
     expect(find.text('Удалить'), findsOneWidget);
   });
 
@@ -123,5 +127,69 @@ void main() {
     ]);
     await tester.tap(find.text('Disabled action'), warnIfMissed: false);
     expect(called, 0);
+  });
+
+  testWidgets('подменю: наведение не раскрывает, только явное нажатие',
+      (tester) async {
+    await pumpMenu(tester, items: [
+      MenuItem(
+        id: 'list',
+        label: 'В список',
+        children: [
+          const MenuItem(id: 's1', label: 'Просмотрено'),
+        ],
+      ),
+    ]);
+
+    final center = tester.getCenter(find.text('В список'));
+    final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse, pointer: 11);
+    await gesture.addPointer(location: center);
+    addTearDown(gesture.removePointer);
+    await gesture.moveTo(center);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Просмотрено'), findsNothing);
+
+    await tester.tap(find.text('В список'));
+    await tester.pumpAndSettle();
+    expect(find.text('Просмотрено'), findsOneWidget);
+  });
+
+  testWidgets('hold-to-delete: беглое нажатие показывает подсказку, холд рисует прогресс и удаляет',
+      (tester) async {
+    var deleted = 0;
+    await pumpMenu(tester, items: [
+      MenuItem(
+        id: 'del',
+        label: 'Удалить',
+        kind: 'danger',
+        holdToDelete: true,
+        action: () => deleted++,
+      ),
+    ]);
+
+    // Короткий тап -> подсказка «Удерживайте 1 сек»
+    await tester.tap(find.text('Удалить'));
+    await tester.pump();
+    expect(deleted, 0);
+    expect(find.text('Удерживайте 1 сек'), findsOneWidget);
+
+    // Ждём исчезновения подсказки (1500ms)
+    await tester.pump(const Duration(milliseconds: 1600));
+    expect(find.text('Удалить'), findsOneWidget);
+
+    // Зажатие -> анимация наполнения и «Удаление…» -> завершение через 1000ms
+    final gesture = await tester.startGesture(tester.getCenter(find.text('Удалить')));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Удаление…'), findsOneWidget);
+    final fillBox = tester.widget<FractionallySizedBox>(
+        find.byType(FractionallySizedBox));
+    expect(fillBox.widthFactor, greaterThan(0.2));
+
+    await tester.pump(const Duration(milliseconds: 700));
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(deleted, 1);
   });
 }

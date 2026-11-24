@@ -19,7 +19,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart' show Options, ResponseType;
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../entities/media/model/cover_url.dart';
@@ -36,7 +35,6 @@ import '../../shared/theme/tsundoku_theme.dart';
 import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/types/enums.dart';
 import '../../shared/types/models.dart';
-import '../../shared/ui/confirm_dialog.dart';
 import '../../shared/ui/context_menu_controller.dart';
 import '../../shared/ui/toast.dart';
 import 'card_types.dart';
@@ -95,30 +93,6 @@ class _BaseCardState extends ConsumerState<BaseCard> {
     if (event.logicalKey == LogicalKeyboardKey.enter ||
         event.logicalKey == LogicalKeyboardKey.space) {
       widget.props.onOpen?.call(widget.props.item);
-    }
-  }
-
-  Future<void> _removeItem() async {
-    final onDelete = widget.props.onDelete;
-    if (onDelete == null) return;
-    final t = ref.read(tProvider);
-    final item = widget.props.item;
-    final confirmed = await confirmAction(
-      ref,
-      ConfirmRequest(
-        key: 'delete-media',
-        title: t.tf('card.confirmDelete', [item.title]),
-        confirmLabel: t.tr('common.delete'),
-        danger: true,
-      ),
-    );
-    if (!confirmed) return;
-
-    setState(() => _deleteError = null);
-    try {
-      await onDelete(item);
-    } catch (error) {
-      setState(() => _deleteError = error);
     }
   }
 
@@ -398,7 +372,6 @@ class _BaseCardState extends ConsumerState<BaseCard> {
 
   @override
   Widget build(BuildContext context) {
-    final t = ref.watch(tProvider);
     final props = widget.props;
     final item = props.item;
     final th = TsundokuTheme.of(context);
@@ -484,14 +457,6 @@ class _BaseCardState extends ConsumerState<BaseCard> {
                         MediaScoreBadge(score: item.score),
                       ],
                     ),
-                    actions: props.onDelete != null
-                        ? _DeleteCardButton(
-                            visible: _hoverActive,
-                            semanticLabel:
-                                t.tf('card.deleteAria', [item.title]),
-                            onPressed: () => unawaited(_removeItem()),
-                          )
-                        : null,
                   ),
 
                   // Градиент-оверлей: пассивный слой + hover-слой.
@@ -500,8 +465,8 @@ class _BaseCardState extends ConsumerState<BaseCard> {
                     right: 0,
                     bottom: 0,
                     child: Container(
-                      // px-3 pt-16 pb-3; bg-gradient-to-t 3-stop 1-в-1.
-                      padding: const EdgeInsets.fromLTRB(12, 64, 12, 12),
+                      // px-3 pt-16 pb-2 (shifted down slightly vs pb-3); bg-gradient-to-t 3-stop.
+                      padding: const EdgeInsets.fromLTRB(12, 64, 12, 8),
                       decoration: const BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.bottomCenter,
@@ -634,76 +599,6 @@ class _TimeHintChip extends ConsumerWidget {
             color: canFinish
                 ? const Color(0xFF6EE7B7) // text-emerald-300
                 : th.accentSoft, // text-accent-soft
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Кнопка удаления (Trash2 14px): h-7 w-7 rounded-full, border-white/[0.06],
-/// bg-black/80, hover:border-rose-500/40 hover:bg-rose-600 hover:text-white;
-/// opacity 0 → 1 при hover/focus карточки.
-class _DeleteCardButton extends StatefulWidget {
-  final bool visible;
-  final String semanticLabel;
-  final VoidCallback onPressed;
-
-  const _DeleteCardButton({
-    required this.visible,
-    required this.semanticLabel,
-    required this.onPressed,
-  });
-
-  @override
-  State<_DeleteCardButton> createState() => _DeleteCardButtonState();
-}
-
-class _DeleteCardButtonState extends State<_DeleteCardButton> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final show = widget.visible;
-    return IgnorePointer(
-      ignoring: !show,
-      child: AnimatedOpacity(
-        opacity: show ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 200),
-        child: MouseRegion(
-          onEnter: (_) {
-            if (show) setState(() => _hovered = true);
-          },
-          onExit: (_) => setState(() => _hovered = false),
-          child: GestureDetector(
-            onTap: widget.onPressed,
-            child: Semantics(
-              button: true,
-              label: widget.semanticLabel,
-              child: Container(
-                width: 28, // h-7 w-7
-                height: 28,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle, // rounded-full
-                  color: (_hovered && show)
-                      ? const Color(0xFFE11D48) // hover:bg-rose-600
-                      : const Color(0xCC000000), // bg-black/80
-                  border: Border.all(
-                    color: (_hovered && show)
-                        ? const Color(0x66F43F5E) // hover:border-rose-500/40
-                        : Colors.white.withAlpha(15), // border-white/[0.06]
-                  ),
-                ),
-                child: Icon(
-                  LucideIcons.trash2, // Trash2 size={14}
-                  size: 14,
-                  color: (_hovered && show)
-                      ? Colors.white // hover:text-white
-                      : Colors.white.withAlpha(179), // text-white/70
-                ),
-              ),
-            ),
           ),
         ),
       ),

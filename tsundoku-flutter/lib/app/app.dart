@@ -25,6 +25,7 @@ import '../features/drop-reason/drop_reason_modal.dart';
 import '../features/drop-reason/drop_reason_prompt.dart';
 import '../features/import-media/import_modal.dart';
 import '../features/lists/create_list_modal.dart';
+import '../features/prefetch-details/media_detail_prefetch.dart';
 import '../features/search-external/search_modal.dart';
 import '../features/settings/first_run_storage_modal.dart';
 import '../features/stale-triage/stale_backlog_modal.dart';
@@ -40,6 +41,7 @@ import '../shared/types/enums.dart' hide SettingsTab;
 import '../shared/types/models.dart';
 import '../shared/ui/confirm_modal.dart';
 import '../shared/ui/context_menu_controller.dart';
+import '../shared/ui/smooth_scroll_behavior.dart';
 import '../shared/ui/smooth_scroll_controller.dart';
 import '../shared/ui/toast.dart';
 import '../shared/utils/app_exit.dart';
@@ -89,7 +91,14 @@ class TsundokuApp extends StatelessWidget {
       title: 'Tsundoku',
       debugShowCheckedModeBanner: false,
       theme: buildTsundokuTheme(tokens: TsundokuTheme.obsidian),
-      builder: debugOverlayBuilder,
+      scrollBehavior: const TsundokuSmoothScrollBehavior(),
+      builder: (context, child) {
+        Widget built = child ?? const SizedBox.shrink();
+        if (kDebugMode && debugOverlayBuilder != null) {
+          built = debugOverlayBuilder!(context, built);
+        }
+        return TsundokuSmoothWheelInterceptor(child: built);
+      },
       home: ProviderScope(
         overrides: (providerOverrides ?? const <dynamic>[]).cast(),
         child: const _AppRouter(),
@@ -111,12 +120,15 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
   // ignore: unused_field
   Category? _activeCategory; // switchView пишет; читается в категорийной ветке роутинга
   String? _selectedMediaId; // MediaDetailView — Фаза 4
+  MediaItem? _selectedMediaItem;
   AppView _previousView = AppViews.home;
   int _mediaRevision = 0;
   bool _isExitModalOpen = false; // CloseAppModal ✓
   bool _firstRunSetupRequired = false; // FirstRunStorageModal ✓
-  final ScrollController _mainScroll = SmoothScrollController();
-  final Map<String, double> _savedScrollPositions = <String, double>{};
+  final Map<String, ScrollController> _viewScrollControllers =
+      <String, ScrollController>{};
+  final ScrollController _detailScroll = SmoothScrollController();
+  final List<String> _cachedViewKeys = <String>[AppViews.home];
   late final AppExit _appExit;
 
   bool _isCreateOpen = false; // CreateModal ✓
@@ -147,6 +159,9 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
           _activeView = v;
           _renderedView = v;
           if (_isCategory(v)) _activeCategory = v;
+          if (!_isTransientView(v) && !_cachedViewKeys.contains(v)) {
+            _cachedViewKeys.add(v);
+          }
         }
         if (params.containsKey('mediaId')) {
           _selectedMediaId = params['mediaId'];
@@ -203,8 +218,11 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
           .read(jobsClientProvider.notifier)
           .attachApi(ref.read(apiClientProvider));
       ref.read(jobsClientProvider.notifier).connect();
-      // jobsClient.onJobSettled → mediaRevision (рефетч грида).
+      // jobsClient.onJobSettled → invalidate detail cache + mediaRevision (рефетч грида).
       ref.read(jobsClientProvider.notifier).onJobSettled((job) {
+        if (job.mediaId != null) {
+          ref.read(mediaDetailCacheProvider).invalidate(job.mediaId!);
+        }
         if (mounted) setState(() => _mediaRevision += 1);
       });
       // FirstRun storage wizard (Фаза 5): флаг готовности.
@@ -221,9 +239,22 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
 
   @override
   void dispose() {
-    _mainScroll.dispose();
+    for (final ctrl in _viewScrollControllers.values) {
+      ctrl.dispose();
+    }
+    _detailScroll.dispose();
     super.dispose();
   }
+
+  ScrollController _controllerFor(String viewKey) {
+    return _viewScrollControllers.putIfAbsent(
+      viewKey,
+      () => SmoothScrollController(),
+    );
+  }
+
+  bool _isTransientView(AppView view) =>
+      view == AppViews.detail || view == AppViews.seasons;
 
   // ------------------------------------------------------------------
   // Роутинг.
@@ -236,64 +267,56 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
     if (_isCategory(view)) {
       _activeCategory = view;
     }
+    if (!_isTransientView(view) && !_cachedViewKeys.contains(view)) {
+      _cachedViewKeys.add(view);
+    }
     _renderedView = view;
   }
 
   void navigate(AppView view) {
-    if (_activeView != view) {
-      _savedScrollPositions[_activeView] = _mainScroll.hasClients
-          ? _mainScroll.offset
-          : 0;
-    }
     setState(() {
       _activeView = view;
       _selectedMediaId = null;
+      _selectedMediaItem = null;
+      switchView(view);
     });
     ref.read(uiSettingsProvider.notifier).setLastView(view);
-    if (view == AppViews.home) _setScroll(0);
-    switchView(view);
   }
 
   /// Every caller (card click, related tile, search result) lands here.
   void openDetail(MediaItem item) {
-    // MediaDetailView — Фаза 4: сейчас заглушка-вью detail.
     if (_activeView != 'detail') {
       _previousView = _activeView;
-      _savedScrollPositions[_activeView] =
-          _mainScroll.hasClients ? _mainScroll.offset : 0;
     }
     setState(() {
       _activeView = 'detail';
       _selectedMediaId = item.id;
+      _selectedMediaItem = item;
+      switchView('detail');
     });
-    _setScroll(0);
-    switchView('detail');
+    _resetDetailScroll();
   }
 
   void openDetailById(String id) {
-    openDetail(MediaItem.fromJson(<String, dynamic>{
-      'id': id,
-      'type': 'book',
-      'title': '',
-      'status': 0,
-      'createdAt': '',
-    }));
+    if (_activeView != 'detail') {
+      _previousView = _activeView;
+    }
+    setState(() {
+      _activeView = 'detail';
+      _selectedMediaId = id;
+      _selectedMediaItem = null;
+      switchView('detail');
+    });
+    _resetDetailScroll();
   }
 
   void mediaChanged() {
     setState(() => _mediaRevision += 1);
   }
 
-  /// closeDetail (App.svelte): назад к previousView + восстановление скролла.
+  /// closeDetail (App.svelte): назад к previousView (позиция скролла сохранена в IndexedStack).
   void _closeDetail() {
-    final target = _previousView;
-    navigate(target);
-    final saved = _savedScrollPositions[target];
-    if (saved != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _setScroll(saved);
-      });
-    }
+    navigate(_previousView);
   }
 
   /// deleteFromDetail (App.svelte): удалить тайтл и рефрешнуть грид.
@@ -302,9 +325,9 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
     mediaChanged();
   }
 
-  void _setScroll(double value) {
-    if (_mainScroll.hasClients) {
-      _mainScroll.jumpTo(value.clamp(0.0, _mainScroll.position.maxScrollExtent));
+  void _resetDetailScroll() {
+    if (_detailScroll.hasClients) {
+      _detailScroll.jumpTo(0);
     }
   }
 
@@ -494,75 +517,79 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final th = TsundokuTheme.of(context);
-    final rendered = _renderedView;
-    final title = _titleForView(_activeView);
-    final jobsModalOpen =
-        ref.watch(jobsClientProvider.select((s) => s.isModalOpen));
-    final dropPrompt = ref.watch(dropPromptStateProvider);
+  Widget _buildCachedSection(String viewKey, TsundokuTheme th) {
+    if (viewKey == AppViews.home) {
+      return CustomScrollView(
+        key: const ValueKey('scroll-home'),
+        controller: _controllerFor(viewKey),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.all(24),
+            sliver: HomeView(
+              key: const ValueKey('home'),
+              refreshKey: _mediaRevision,
+              onOpen: openDetail,
+              onMediaChanged: mediaChanged,
+              onOpenStaleBacklog: () =>
+                  setState(() => _isStaleBacklogOpen = true),
+              initiallyOpenTimeBudget: _initiallyOpenTimeBudget,
+            ),
+          ),
+        ],
+      );
+    }
+    if (_isCategory(viewKey)) {
+      return CustomScrollView(
+        key: ValueKey('scroll-cat-$viewKey'),
+        controller: _controllerFor(viewKey),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.all(24),
+            sliver: CategoryView(
+              key: ValueKey(viewKey),
+              category: viewKey,
+              active: true,
+              refreshKey: _mediaRevision,
+              onOpen: openDetail,
+              onMediaChanged: mediaChanged,
+              onEdit: (item) => openCreate(item),
+            ),
+          ),
+        ],
+      );
+    }
+    if (viewKey == AppViews.settings) {
+      return LayoutBuilder(
+        key: const ValueKey('scroll-settings'),
+        builder: (context, constraints) => SizedBox(
+          height: constraints.maxHeight,
+          child: SettingsView(
+            key: const ValueKey('settings'),
+            initialTab: SettingsTab.fromWire(_settingsTabRequest),
+            onImportCompleted: mediaChanged,
+            onNavigateToList: (listId) => navigate(AppViews.lists),
+            onTestSearch: (source, type) => openSearch(<String, dynamic>{
+              'query': '',
+              'source': source,
+              'type': type == 'movie' || type == 'anime' || type == 'game'
+                  ? type
+                  : 'all',
+            }),
+          ),
+        ),
+      );
+    }
 
-    Widget? body;
-    final isSliverView = rendered == AppViews.home || _isCategory(rendered);
-    if (rendered == AppViews.home) {
-      body = HomeView(
-        key: const ValueKey('home'),
-        refreshKey: _mediaRevision,
-        onOpen: openDetail,
-        onMediaChanged: mediaChanged,
-        onOpenStaleBacklog: () => setState(() => _isStaleBacklogOpen = true),
-        initiallyOpenTimeBudget: _initiallyOpenTimeBudget,
-      );
-    } else if (_isCategory(rendered)) {
-      body = CategoryView(
-        key: ValueKey(rendered),
-        category: rendered,
-        active: true,
-        refreshKey: _mediaRevision,
-        onOpen: openDetail,
-        onMediaChanged: mediaChanged,
-        onEdit: (item) => openCreate(item),
-      );
-    } else if (rendered == AppViews.detail && _selectedMediaId != null) {
-      body = MediaDetailView(
-        key: ValueKey('detail-$_selectedMediaId'),
-        mediaId: _selectedMediaId!,
-        refreshKey: _mediaRevision,
-        onBack: _closeDetail,
-        onUpdate: mediaChanged,
-        onDelete: _deleteFromDetail,
-        onEdit: (item) => openCreate(item),
-        onOpenRelated: openDetail,
-        onSearch: openSearch,
-        onOpenLists: () => navigate(AppViews.lists),
-        initialSubTab: _detailTabRequest == 'episodes'
-            ? SubTab.episodes
-            : _detailTabRequest == 'gallery'
-                ? SubTab.gallery
-                : _detailTabRequest == 'related'
-                    ? SubTab.related
-                    : _detailTabRequest == 'recommendations'
-                        ? SubTab.recommendations
-                        : SubTab.overview,
-      );
-    } else if (rendered == AppViews.seasons && _selectedMediaId != null) {
-      body = ShowSeasonsView(
-        key: ValueKey('seasons-$_selectedMediaId'),
-        mediaId: _selectedMediaId!,
-        refreshKey: _mediaRevision,
-        onBack: _closeDetail,
-        onMediaChanged: mediaChanged,
-      );
-    } else if (rendered == AppViews.stats) {
-      body = StatsView(
+    final Widget inner;
+    if (viewKey == AppViews.stats) {
+      inner = StatsView(
         key: const ValueKey('stats'),
         refreshKey: _mediaRevision,
         onOpenMedia: (mediaId) => openDetailById(mediaId),
         onOpenStaleBacklog: () => setState(() => _isStaleBacklogOpen = true),
       );
-    } else if (rendered == AppViews.lists) {
-      body = ListsView(
+    } else if (viewKey == AppViews.lists) {
+      inner = ListsView(
         key: const ValueKey('lists'),
         onOpen: openDetail,
         onImportCompleted: mediaChanged,
@@ -573,48 +600,118 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
           onClose: onClose,
           onSaved: onSaved,
         ),
-        importModalBuilder: (context, onClose, onImportCompleted, onNavigateToList) =>
-            ImportModal(
+        importModalBuilder:
+            (context, onClose, onImportCompleted, onNavigateToList) =>
+                ImportModal(
           isOpen: true,
           onClose: onClose,
           onImportCompleted: onImportCompleted,
           onNavigateToList: onNavigateToList,
         ),
       );
-    } else if (rendered == AppViews.history) {
-      body = HistoryView(
+    } else if (viewKey == AppViews.history) {
+      inner = HistoryView(
         key: const ValueKey('history'),
         refreshKey: _mediaRevision,
         onOpenMedia: (mediaId) => openDetailById(mediaId),
       );
-    } else if (rendered == AppViews.calendar) {
-      body = CalendarView(
+    } else if (viewKey == AppViews.calendar) {
+      inner = CalendarView(
         key: const ValueKey('calendar'),
         onOpenMedia: (mediaId) => openDetailById(mediaId),
       );
-    } else if (rendered == AppViews.goals) {
-      body = GoalsView(
+    } else if (viewKey == AppViews.goals) {
+      inner = GoalsView(
         key: const ValueKey('goals'),
         refreshKey: _mediaRevision,
         onOpenMedia: (mediaId) => openDetailById(mediaId),
         onMediaChanged: mediaChanged,
       );
-    } else if (rendered == AppViews.settings) {
-      body = SettingsView(
-        key: const ValueKey('settings'),
-        initialTab: SettingsTab.fromWire(_settingsTabRequest),
-        onImportCompleted: mediaChanged,
-        onNavigateToList: (listId) => navigate(AppViews.lists),
-        onTestSearch: (source, type) => openSearch(<String, dynamic>{
-          'query': '',
-          'source': source,
-          'type': type == 'movie' || type == 'anime' || type == 'game' ? type : 'all',
-        }),
-      );
     } else {
-      // Запасная заглушка для неизвестного типа вью (решение #42).
-      body = _PlaceholderView(title: title, th: th);
+      inner = _PlaceholderView(title: _titleForView(viewKey), th: th);
     }
+
+    return SingleChildScrollView(
+      key: ValueKey('scroll-$viewKey'),
+      controller: _controllerFor(viewKey),
+      padding: const EdgeInsets.all(24),
+      child: inner,
+    );
+  }
+
+  Widget? _buildTransientView(AppView rendered) {
+    if (rendered == AppViews.detail && _selectedMediaId != null) {
+      return SingleChildScrollView(
+        key: ValueKey('scroll-detail-$_selectedMediaId'),
+        controller: _detailScroll,
+        padding: const EdgeInsets.all(24),
+        child: MediaDetailView(
+          key: ValueKey('detail-$_selectedMediaId'),
+          mediaId: _selectedMediaId!,
+          initialItem: _selectedMediaItem,
+          refreshKey: _mediaRevision,
+          onBack: _closeDetail,
+          onUpdate: mediaChanged,
+          onDelete: _deleteFromDetail,
+          onEdit: (item) => openCreate(item),
+          onOpenRelated: openDetail,
+          onSearch: openSearch,
+          onOpenLists: () => navigate(AppViews.lists),
+          initialSubTab: _detailTabRequest == 'episodes'
+              ? SubTab.episodes
+              : _detailTabRequest == 'gallery'
+                  ? SubTab.gallery
+                  : _detailTabRequest == 'related'
+                      ? SubTab.related
+                      : _detailTabRequest == 'recommendations'
+                          ? SubTab.recommendations
+                          : SubTab.overview,
+        ),
+      );
+    }
+    if (rendered == AppViews.seasons && _selectedMediaId != null) {
+      return SingleChildScrollView(
+        key: ValueKey('scroll-seasons-$_selectedMediaId'),
+        controller: _detailScroll,
+        padding: const EdgeInsets.all(24),
+        child: ShowSeasonsView(
+          key: ValueKey('seasons-$_selectedMediaId'),
+          mediaId: _selectedMediaId!,
+          refreshKey: _mediaRevision,
+          onBack: _closeDetail,
+          onMediaChanged: mediaChanged,
+        ),
+      );
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final th = TsundokuTheme.of(context);
+    final rendered = _renderedView;
+    final title = _titleForView(_activeView);
+    final jobsModalOpen =
+        ref.watch(jobsClientProvider.select((s) => s.isModalOpen));
+    final dropPrompt = ref.watch(dropPromptStateProvider);
+
+    final Widget? transientView = _buildTransientView(rendered);
+    final int activeIndex = _cachedViewKeys.indexOf(rendered);
+    final Widget mainContent = Stack(
+      fit: StackFit.expand,
+      children: [
+        Offstage(
+          offstage: transientView != null,
+          child: IndexedStack(
+            index: activeIndex >= 0 ? activeIndex : 0,
+            children: [
+              for (final key in _cachedViewKeys) _buildCachedSection(key, th),
+            ],
+          ),
+        ),
+        ?transientView,
+      ],
+    );
 
     return Material(
       color: Colors.transparent,
@@ -629,7 +726,6 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
                 onSecondaryTapUp: (details) =>
                     _showAppContextMenu(details.globalPosition),
                 child: AppShell(
-                  mainScrollController: _mainScroll,
                   noPadding: rendered == 'settings',
                   sidebar: Sidebar(
                     activeView: _activeView,
@@ -641,9 +737,7 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
                     onSearch: () => openSearch(),
                     onExitClick: () => unawaited(handleExitClick()),
                   ),
-                  // CategoryView/HomeView — слайвер-вью (решение #37).
-                  slivers: isSliverView ? [body] : null,
-                  child: !isSliverView ? body : null,
+                  bodyOverride: mainContent,
                 ),
               ),
             ),

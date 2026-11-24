@@ -30,6 +30,7 @@ import '../shared/types/enums.dart';
 import '../shared/types/models.dart';
 import '../shared/theme/tsundoku_theme.dart';
 import '../shared/theme/tsundoku_tokens.dart';
+import '../shared/ui/modal.dart';
 import '../shared/ui/toast.dart';
 import '../shared/utils/prefetch_cache.dart';
 import '../shared/utils/progress_debounce.dart';
@@ -341,6 +342,7 @@ void _persistGamePayloads(
 
 class MediaDetailView extends ConsumerStatefulWidget {
   final String mediaId;
+  final MediaItem? initialItem;
   final int refreshKey;
   final VoidCallback onBack;
   final VoidCallback onUpdate;
@@ -354,6 +356,7 @@ class MediaDetailView extends ConsumerStatefulWidget {
   const MediaDetailView({
     super.key,
     required this.mediaId,
+    this.initialItem,
     required this.refreshKey,
     required this.onBack,
     required this.onUpdate,
@@ -383,6 +386,9 @@ class _MediaDetailViewState extends ConsumerState<MediaDetailView> {
   Object? _loadError;
   int _requestSequence = 0;
   String? _trackedMediaId;
+  bool _hasCachedMedia = false;
+  bool _hasInitialItemFallback = false;
+  bool _didSyncInitialMedia = false;
 
   late SubTab _activeSubTab = widget.initialSubTab;
 
@@ -506,13 +512,35 @@ class _MediaDetailViewState extends ConsumerState<MediaDetailView> {
   @override
   void initState() {
     super.initState();
-    // $effect(refreshKey, mediaId): первый load — после монтирования
-    // (эффекты Svelte выполняются post-mount; containerOf недоступен в
-    // initState).
+    // $effect(refreshKey, mediaId): синхронно подхватываем кэш / initialItem
+    // в первом кадре без мигания скелетона, а при необходимости догружаем
+    // детали тихо в фоне после монтирования.
     _trackedMediaId = widget.mediaId;
+    _primeFromCacheOrInitial();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        unawaited(_load(widget.mediaId, ++_requestSequence, true));
+        if (!_hasCachedMedia) {
+          unawaited(_load(
+            widget.mediaId,
+            ++_requestSequence,
+            true,
+            silent: _hasInitialItemFallback,
+          ));
+        } else {
+          final cached = _media!;
+          if (cached.type == MediaType.game) {
+            final ach = _achievementsCache.peek(cached.id);
+            if (ach != null) {
+              setState(() {
+                _gameAchievements = ach.achievements;
+                _gameAchievementsTotal = ach.total;
+              });
+            }
+          }
+          if (!_enrichedMediaIds.contains(cached.id)) {
+            unawaited(_triggerBackgroundEnrichment(cached, _requestSequence));
+          }
+        }
       }
     });
     // $effect: sources для бейджей рейтингов.
@@ -530,6 +558,60 @@ class _MediaDetailViewState extends ConsumerState<MediaDetailView> {
     });
   }
 
+  void _primeFromCacheOrInitial() {
+    _hasCachedMedia = false;
+    _hasInitialItemFallback = false;
+    _didSyncInitialMedia = false;
+
+    final cached = ref.read(mediaDetailCacheProvider).peek(widget.mediaId);
+    if (cached != null && cached.syncStatus != SyncStatus.syncing) {
+      _media = cached;
+      _isLoading = false;
+      _loadError = null;
+      _statusValue = cached.status;
+      _scoreValue = cached.score;
+      _watchedOnInput = cached.watchedOn ?? '';
+      _hasCachedMedia = true;
+      return;
+    }
+
+    final initial = widget.initialItem;
+    if (initial != null &&
+        initial.id == widget.mediaId &&
+        initial.title.isNotEmpty) {
+      final fallback = MediaDetail.fromJson(initial.toJson());
+      _media = fallback;
+      _isLoading = false;
+      _loadError = null;
+      _statusValue = fallback.status;
+      _scoreValue = fallback.score;
+      _watchedOnInput = fallback.watchedOn ?? '';
+      _hasInitialItemFallback = true;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_didSyncInitialMedia && _media != null) {
+      _didSyncInitialMedia = true;
+      final item = _media!;
+      final info = readProgress(item, _t);
+      _progressValue =
+          reconcileProgress(_container, item.id, info?.current ?? 0);
+      _committedProgress = info?.current ?? 0;
+      _pendingSnapshot = null;
+      if (_hasCachedMedia) {
+        final storedRelated = _readStoredRelated(item, _t);
+        if (storedRelated != null) {
+          _related = storedRelated;
+          _lastRelatedSource = item.relatedSource;
+        }
+        _readStoredGamePayloads(item);
+      }
+    }
+  }
+
   @override
   void didUpdateWidget(covariant MediaDetailView oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -538,7 +620,26 @@ class _MediaDetailViewState extends ConsumerState<MediaDetailView> {
         oldWidget.mediaId != widget.mediaId) {
       final isNew = _trackedMediaId != widget.mediaId;
       _trackedMediaId = widget.mediaId;
-      unawaited(_load(widget.mediaId, ++_requestSequence, isNew));
+      if (isNew) {
+        _primeFromCacheOrInitial();
+        if (_media != null) {
+          final item = _media!;
+          final info = readProgress(item, _t);
+          _progressValue =
+              reconcileProgress(_container, item.id, info?.current ?? 0);
+          _committedProgress = info?.current ?? 0;
+          _pendingSnapshot = null;
+          _didSyncInitialMedia = true;
+        }
+        unawaited(_load(
+          widget.mediaId,
+          ++_requestSequence,
+          true,
+          silent: _hasCachedMedia || _hasInitialItemFallback,
+        ));
+      } else {
+        unawaited(_load(widget.mediaId, ++_requestSequence, false));
+      }
     }
   }
 
@@ -585,8 +686,8 @@ class _MediaDetailViewState extends ConsumerState<MediaDetailView> {
   // ------------------------------------------------------------------
 
   Future<void> _load(String id, int sequence, bool isNew,
-      {bool forceRefresh = false}) async {
-    if (isNew) {
+      {bool forceRefresh = false, bool silent = false}) async {
+    if (isNew && !silent) {
       setState(() {
         _media = null;
         _isLoading = true;
@@ -607,14 +708,31 @@ class _MediaDetailViewState extends ConsumerState<MediaDetailView> {
         _deleteError = null;
         _deleteBusy = false;
       });
+    } else if (isNew && silent) {
+      _userRatingPopoverOpen = false;
+      _synopsisExpanded = false;
+      _isSynopsisTranslated = false;
+      _translatedSynopsis = null;
+      _translatingSynopsis = false;
+      _activeSubTab = widget.initialSubTab;
+      _relatedError = null;
+      _previewRelatedItem = null;
+      _progressError = null;
+      _statusError = null;
+      _ratingError = null;
+      _deleteError = null;
+      _deleteBusy = false;
     }
 
     try {
       // Префетч по наведению отдаёт готовый объект; после мутаций кэш протух —
-      // берём сеть.
-      final loaded = (isNew && !forceRefresh)
+      // берём сеть. Также не держим в кэше застрявший syncStatus == syncing.
+      var loaded = (isNew && !forceRefresh)
           ? await loadMediaDetailRef(_container, id)
           : await _refreshMediaDetail(_container, id);
+      if (isNew && !forceRefresh && loaded.syncStatus == SyncStatus.syncing) {
+        loaded = await _refreshMediaDetail(_container, id);
+      }
       if (sequence != _requestSequence || !mounted) return;
       setState(() {
         _media = loaded;
@@ -3258,6 +3376,7 @@ class _MediaDetailViewState extends ConsumerState<MediaDetailView> {
   Widget build(BuildContext context) {
     final t = ref.watch(tProvider);
     final th = TsundokuTheme.of(context);
+    ref.watch(jobsClientProvider);
     final media = _media;
     final isLoading = _isLoading;
 
@@ -3440,46 +3559,46 @@ class _MediaDetailViewState extends ConsumerState<MediaDetailView> {
             // Модалки: нативный popover — top-layer браузера; Flutter-аналог
             // OverlayPortal (Stack-модалка внутри скролл-контейнера получает
             // бесконечную высоту).
-            _OverlayModal(
+            TsundokuOverlayModal(
               isOpen: _relinkOpen,
               modal: RelinkSourceModal(
-              isOpen: _relinkOpen,
-              mediaId: widget.mediaId,
-              title: _media?.title ?? '',
-              originalTitle: _originalTitle,
-              type: _relinkType,
-              currentSource: _media?.externalSource,
-              onClose: () => setState(() => _relinkOpen = false),
-              onRelinked: _applyRelinked,
+                isOpen: _relinkOpen,
+                mediaId: widget.mediaId,
+                title: _media?.title ?? '',
+                originalTitle: _originalTitle,
+                type: _relinkType,
+                currentSource: _media?.externalSource,
+                onClose: () => setState(() => _relinkOpen = false),
+                onRelinked: _applyRelinked,
               ),
             ),
-            _OverlayModal(
+            TsundokuOverlayModal(
               isOpen: _overwritePromptOpen,
               modal: OverwriteConfirmModal(
-              isOpen: _overwritePromptOpen,
-              busy: _refreshBusy,
-              onFillMissing: () => _resolveOverwrite(true),
-              onOverwrite: () => _resolveOverwrite(false),
-              onClose: () => setState(() => _overwritePromptOpen = false),
+                isOpen: _overwritePromptOpen,
+                busy: _refreshBusy,
+                onFillMissing: () => _resolveOverwrite(true),
+                onOverwrite: () => _resolveOverwrite(false),
+                onClose: () => setState(() => _overwritePromptOpen = false),
               ),
             ),
-            _OverlayModal(
+            TsundokuOverlayModal(
               isOpen: _fillMissingOpen,
               modal: FillMissingModal(
-              isOpen: _fillMissingOpen,
-              busy: _fillMissingBusy,
-              media: _media,
-              mediaType: _media?.type.wire ?? 'movie',
-              currentSource: _media?.externalSource,
-              onFill: (source) => unawaited(_handleFillMissing(source)),
-              onClose: () => setState(() => _fillMissingOpen = false),
+                isOpen: _fillMissingOpen,
+                busy: _fillMissingBusy,
+                media: _media,
+                mediaType: _media?.type.wire ?? 'movie',
+                currentSource: _media?.externalSource,
+                onFill: (source) => unawaited(_handleFillMissing(source)),
+                onClose: () => setState(() => _fillMissingOpen = false),
               ),
             ),
           ],
         ),
           ),
           // PREVIEW MODAL FOR UNADDED RELATED ITEMS.
-          _OverlayModal(
+          TsundokuOverlayModal(
             isOpen: _previewRelatedItem != null,
             modal: RelatedPreviewModal(
               item: _previewRelatedItem,
@@ -3495,8 +3614,8 @@ class _MediaDetailViewState extends ConsumerState<MediaDetailView> {
                 }
               },
               onClose: () => setState(() => _previewRelatedItem = null),
-              ),
             ),
+          ),
         ],
       ),
     );
@@ -3511,55 +3630,6 @@ class _MediaDetailViewState extends ConsumerState<MediaDetailView> {
       return 'anime';
     }
     return type.wire;
-  }
-}
-
-/// Top-layer mounting для модалок (аналог native popover top-layer).
-class _OverlayModal extends ConsumerStatefulWidget {
-  final bool isOpen;
-  final Widget modal;
-
-  const _OverlayModal({required this.isOpen, required this.modal});
-
-  @override
-  ConsumerState<_OverlayModal> createState() => _OverlayModalState();
-}
-
-class _OverlayModalState extends ConsumerState<_OverlayModal> {
-  final OverlayPortalController _portal = OverlayPortalController();
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.isOpen) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && widget.isOpen) _portal.show();
-      });
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant _OverlayModal oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isOpen != oldWidget.isOpen) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        if (widget.isOpen && !_portal.isShowing) {
-          _portal.show();
-        } else if (!widget.isOpen && _portal.isShowing) {
-          _portal.hide();
-        }
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return OverlayPortal(
-      controller: _portal,
-      overlayChildBuilder: (_) => widget.modal,
-      child: const SizedBox.shrink(),
-    );
   }
 }
 
@@ -3995,7 +4065,7 @@ class _RightColumnState extends ConsumerState<_RightColumn> {
         // The whole section is tab-gated: the season banner must not leak into
         // Related/Recommendations.
         if (media.type != MediaType.tvshow) return const SizedBox.shrink();
-        if (st._isSyncing) {
+        if (st._isSyncing && st._seasons.isEmpty) {
           return SyncRowsSkeleton(label: t.tr('activity.loadingSeasons'));
         }
         return EpisodesTab(

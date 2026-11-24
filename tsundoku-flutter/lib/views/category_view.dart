@@ -112,7 +112,6 @@ class _CategoryViewState extends ConsumerState<CategoryView> {
   Object? _loadError;
   int _requestSequence = 0;
 
-  Category? _lastLoadedCategory;
   int? _prevRefreshKey;
   int _stuckReloadKey = 0;
 
@@ -136,7 +135,7 @@ class _CategoryViewState extends ConsumerState<CategoryView> {
     final settings = ref.read(uiSettingsProvider);
     // statusFilter — строка ('all' | '0'..'4'); 'all' → int.tryParse null.
     final parsedStatus = int.tryParse(settings.statusFilter);
-    setState(() {
+    void apply() {
       _status = saved?.status ??
           (parsedStatus == null
               ? const StatusFilter.all()
@@ -147,13 +146,20 @@ class _CategoryViewState extends ConsumerState<CategoryView> {
       final cached = categoryCache.peek(widget.category);
       if (cached != null) {
         _allItems = cached;
+        _totalCount = cached.length;
         _loading = false;
       } else if (!isInitialMount) {
         // Live-переключение без кэша: loading=false — серый placeholder не
         // мигает, контент встанет после loadItems.
         _loading = false;
       }
-    });
+    }
+
+    if (isInitialMount) {
+      apply();
+    } else {
+      setState(apply);
+    }
   }
 
   @override
@@ -161,7 +167,6 @@ class _CategoryViewState extends ConsumerState<CategoryView> {
     super.didUpdateWidget(oldWidget);
     if (widget.category != oldWidget.category) {
       _applySavedState(isInitialMount: false);
-      _lastLoadedCategory = null; // форс перезагрузки ниже
     }
   }
 
@@ -299,12 +304,10 @@ class _CategoryViewState extends ConsumerState<CategoryView> {
     if (key == _lastFetchEffectKey) return;
     _lastFetchEffectKey = key;
 
-    final categoryChanged = _lastLoadedCategory != widget.category;
     final revisionChanged =
         _prevRefreshKey != null && widget.refreshKey != _prevRefreshKey;
-    _lastLoadedCategory = widget.category;
     _prevRefreshKey = widget.refreshKey;
-    if (categoryChanged || revisionChanged) {
+    if (revisionChanged) {
       categoryCache.invalidate(widget.category);
     }
     final sequence = ++_requestSequence;
@@ -326,16 +329,6 @@ class _CategoryViewState extends ConsumerState<CategoryView> {
   }
 
   Future<void> _loadItems(int sequence) async {
-    // Cached fast-path: кэш уже отрисован pre-эффектом.
-    final cached = categoryCache.peek(widget.category);
-    if (_search.trim().isEmpty &&
-        cached != null &&
-        cached.isNotEmpty &&
-        identical(_allItems, cached)) {
-      setState(() => _loading = false);
-      return;
-    }
-
     setState(() {
       if (_allItems.isEmpty) {
         _loading = true;

@@ -31,6 +31,10 @@ class AppShell extends ConsumerStatefulWidget {
   /// Бокс-контент main-области (вью без слайверов, напр. settings).
   final Widget? child;
 
+  /// Полностью кастомный контент main-области (например, ленивый IndexedStack
+  /// со своими ScrollView на каждый раздел).
+  final Widget? bodyOverride;
+
   /// Слайвер-контент main-области (CategoryView/HomeView — решение #37):
   /// рендерится в CustomScrollView = #main-scroll.
   final List<Widget>? slivers;
@@ -44,6 +48,7 @@ class AppShell extends ConsumerStatefulWidget {
     required this.sidebar,
     required this.header,
     this.child,
+    this.bodyOverride,
     this.slivers,
     this.mainScrollController,
     this.noPadding = false,
@@ -84,42 +89,47 @@ class _AppShellState extends ConsumerState<AppShell> {
           // main#main-scroll: min-h-0 flex-1 overflow.
           Expanded(
             key: const Key('appshell-main'), // #main-scroll
-            child: widget.slivers != null
-                ? CustomScrollView(
-                    controller: widget.mainScrollController,
-                    slivers: [
-                      if (widget.noPadding)
-                        ...?widget.slivers
-                      else
-                        SliverPadding(
-                          padding: const EdgeInsets.all(24),
-                          sliver: SliverMainAxisGroup(
-                            slivers: widget.slivers!,
-                          ),
-                        ),
-                    ],
-                  )
-                : SingleChildScrollView(
-                    controller: widget.mainScrollController,
-                    // overflow-x-hidden + noPadding → h-full overflow-hidden p-0.
-                    physics:
-                        widget.noPadding ? const NeverScrollableScrollPhysics() : null,
-                    padding: EdgeInsets.zero,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: widget.noPadding ? (MediaQuery.sizeOf(context).height - 56) : 0,
-                      ),
-                      child: widget.noPadding
-                          ? SizedBox(
-                              height: MediaQuery.sizeOf(context).height - 56,
-                              child: widget.child,
-                            )
-                          : Padding(
-                              padding: const EdgeInsets.all(24), // p-6
-                              child: widget.child,
+            child: widget.bodyOverride ??
+                (widget.slivers != null
+                    ? CustomScrollView(
+                        controller: widget.mainScrollController,
+                        slivers: [
+                          if (widget.noPadding)
+                            ...?widget.slivers
+                          else
+                            SliverPadding(
+                              padding: const EdgeInsets.all(24),
+                              sliver: SliverMainAxisGroup(
+                                slivers: widget.slivers!,
+                              ),
                             ),
-                    ),
-                  ),
+                        ],
+                      )
+                    : SingleChildScrollView(
+                        controller: widget.mainScrollController,
+                        // overflow-x-hidden + noPadding → h-full overflow-hidden p-0.
+                        physics: widget.noPadding
+                            ? const NeverScrollableScrollPhysics()
+                            : null,
+                        padding: EdgeInsets.zero,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: widget.noPadding
+                                ? (MediaQuery.sizeOf(context).height - 56)
+                                : 0,
+                          ),
+                          child: widget.noPadding
+                              ? SizedBox(
+                                  height:
+                                      MediaQuery.sizeOf(context).height - 56,
+                                  child: widget.child,
+                                )
+                              : Padding(
+                                  padding: const EdgeInsets.all(24), // p-6
+                                  child: widget.child,
+                                ),
+                        ),
+                      )),
           ),
         ],
       ),

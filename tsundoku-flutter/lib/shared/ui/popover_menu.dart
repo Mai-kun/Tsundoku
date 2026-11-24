@@ -52,6 +52,41 @@ class PopoverFooterContext {
   const PopoverFooterContext({required this.close});
 }
 
+/// Global coordinator ensuring only one popover is open at any time.
+/// Like the browser native [popover] behavior, opening any popover
+/// automatically dismisses any previously active popover.
+class PopoverCoordinator {
+  PopoverCoordinator._();
+  static final PopoverCoordinator instance = PopoverCoordinator._();
+
+  VoidCallback? _activeDismiss;
+
+  /// Registers an opened popover. If another popover is currently open,
+  /// its dismiss callback is invoked immediately.
+  void registerOpen(VoidCallback dismiss) {
+    if (_activeDismiss != null && _activeDismiss != dismiss) {
+      final prev = _activeDismiss;
+      _activeDismiss = null;
+      prev?.call();
+    }
+    _activeDismiss = dismiss;
+  }
+
+  /// Unregisters the dismiss callback if it was active.
+  void unregister(VoidCallback dismiss) {
+    if (_activeDismiss == dismiss) {
+      _activeDismiss = null;
+    }
+  }
+
+  /// Closes the currently active popover if any.
+  void closeAll() {
+    final active = _activeDismiss;
+    _activeDismiss = null;
+    active?.call();
+  }
+}
+
 const double _edge = 8;
 const double _defaultPopoverHeight = 220;
 const double _gapBelowTrigger = 8;
@@ -129,13 +164,18 @@ class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
 
   void _show() {
     _cancelPendingClose();
+    PopoverCoordinator.instance.registerOpen(_hide);
     setState(() => _isOpen = true);
     _portalController.show();
   }
 
   void _hide() {
-    setState(() => _isOpen = false);
-    if (_portalController.isShowing) _portalController.hide();
+    PopoverCoordinator.instance.unregister(_hide);
+    if (!mounted) return;
+    if (_isOpen || _portalController.isShowing) {
+      setState(() => _isOpen = false);
+      if (_portalController.isShowing) _portalController.hide();
+    }
   }
 
   void _select(T value) {
@@ -208,6 +248,7 @@ class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
 
   @override
   void dispose() {
+    PopoverCoordinator.instance.unregister(_hide);
     _cancelPendingClose();
     super.dispose();
   }
@@ -248,7 +289,7 @@ class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
       controller: _portalController,
       overlayChildBuilder: (menuContext) {
         final triggerRect = _triggerRect(menuContext);
-        final defaultW = widget.matchTriggerWidth ? (triggerRect?.width ?? 160.0) : 180.0;
+        final defaultW = widget.matchTriggerWidth ? (triggerRect?.width ?? 140.0) : 140.0;
         final size = Size(defaultW, _defaultPopoverHeight);
         final position = _place(size, triggerRect, menuContext);
         final width = widget.matchTriggerWidth
@@ -256,7 +297,7 @@ class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
             : null;
 
         final menu = Material(
-          color: const Color(0xFF1C202B), // bg-[#1c202b]
+          color: const Color(0xFF151922), // bg-[#151922] strictly matching Svelte --bg-overlay
           elevation: 12,
           shadowColor: const Color(0x80000000),
           borderOnForeground: true,
@@ -267,22 +308,23 @@ class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
           child: Container(
             padding: const EdgeInsets.all(4), // p-1
             constraints: BoxConstraints(
-              minWidth: 144, // min-w-36
-              maxWidth: width ?? 240, // compact 160-240px instead of bloated width
+              minWidth: widget.matchTriggerWidth ? (triggerRect?.width ?? 110) : 110,
+              maxWidth: width ?? 240, // compact 110-240px instead of bloated width
             ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (final option in widget.options)
-                    _MenuOptionButton<T>(
-                      option: option,
-                      selected: option.value == widget.selected,
-                      onSelect: _select,
-                      optionClass: widget.optionClass,
-                      optionBuilder: widget.optionBuilder,
-                    ),
+            child: IntrinsicWidth(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final option in widget.options)
+                      _MenuOptionButton<T>(
+                        option: option,
+                        selected: option.value == widget.selected,
+                        onSelect: _select,
+                        optionClass: widget.optionClass,
+                        optionBuilder: widget.optionBuilder,
+                      ),
                   if (widget.footer != null)
                     Container(
                       margin: const EdgeInsets.only(top: 4),
@@ -300,35 +342,35 @@ class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
               ),
             ),
           ),
+          ),
         );
 
-        return Stack(
-          children: [
-            // Клик мимо — закрыть (translucent, чтобы не ломать hover):
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onTap: _hide,
-                child: const SizedBox.expand(),
+        return TapRegion(
+          groupId: widget.id,
+          onTapOutside: (_) => _hide(),
+          child: Stack(
+            children: [
+              Positioned(
+                left: position.dx,
+                top: position.dy,
+                child: MouseRegion(
+                  onEnter: (_) {
+                    if (widget.openOnHover) _cancelPendingClose();
+                  },
+                  onExit: (_) {
+                    if (widget.openOnHover) _scheduleClose();
+                  },
+                  child: menu,
+                ),
               ),
-            ),
-            Positioned(
-              left: position.dx,
-              top: position.dy,
-              child: MouseRegion(
-                onEnter: (_) {
-                  if (widget.openOnHover) _cancelPendingClose();
-                },
-                onExit: (_) {
-                  if (widget.openOnHover) _scheduleClose();
-                },
-                child: menu,
-              ),
-            ),
-          ],
+            ],
+          ),
         );
       },
-      child: trigger,
+      child: TapRegion(
+        groupId: widget.id,
+        child: trigger,
+      ),
     );
   }
 }

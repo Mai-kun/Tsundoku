@@ -21,6 +21,7 @@ import '../../shared/i18n/index.dart';
 import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/types/index.dart';
 import '../../shared/ui/modal.dart';
+import '../../shared/ui/smooth_scroll_controller.dart';
 import '../../shared/ui/text_field.dart';
 import '../../shared/ui/toast.dart';
 import '../../shared/ui/tsundoku_image.dart';
@@ -1583,10 +1584,16 @@ class _SearchModalState extends ConsumerState<SearchModal> {
     }
 
     if (_activeType == 'all') {
-      return _buildGroupedResults(t, disabledSources);
+      return SmoothScrollScope(
+        key: const ValueKey('search-grouped'),
+        child: _buildGroupedResults(t, disabledSources),
+      );
     }
 
-    return _buildSingleCategoryList(t, _results, disabledSources);
+    return SmoothScrollScope(
+      key: ValueKey('search-cat-$_activeType'),
+      child: _buildSingleCategoryList(t, _results, disabledSources),
+    );
   }
 
   Widget _buildSkeletons() {

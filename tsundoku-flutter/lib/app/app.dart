@@ -40,6 +40,7 @@ import '../shared/types/enums.dart' hide SettingsTab;
 import '../shared/types/models.dart';
 import '../shared/ui/confirm_modal.dart';
 import '../shared/ui/context_menu_controller.dart';
+import '../shared/ui/smooth_scroll_controller.dart';
 import '../shared/ui/toast.dart';
 import '../shared/utils/app_exit.dart';
 import '../shared/utils/ui_settings.dart';
@@ -105,7 +106,7 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
   int _mediaRevision = 0;
   bool _isExitModalOpen = false; // CloseAppModal ✓
   bool _firstRunSetupRequired = false; // FirstRunStorageModal ✓
-  final ScrollController _mainScroll = ScrollController();
+  final ScrollController _mainScroll = SmoothScrollController();
   final Map<String, double> _savedScrollPositions = <String, double>{};
   late final AppExit _appExit;
 

@@ -17,6 +17,7 @@ import '../../shared/api/api.dart';
 import '../../shared/i18n/index.dart';
 import '../../shared/types/index.dart';
 import '../../shared/ui/modal.dart';
+import '../../shared/ui/smooth_scroll_controller.dart';
 import '../../shared/ui/toast.dart';
 import '../../shared/ui/tsundoku_image.dart';
 
@@ -542,8 +543,9 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
       );
     }
 
-    return ListView.separated(
-      itemCount: stale.length,
+    return SmoothScrollScope(
+      child: ListView.separated(
+        itemCount: stale.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final item = stale[index];
@@ -710,6 +712,7 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
           ),
         );
       },
+      ),
     );
   }
 

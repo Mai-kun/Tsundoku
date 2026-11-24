@@ -23,6 +23,7 @@ import '../features/settings/tabs/storage_tab.dart';
 import '../features/settings/tabs/update_tab.dart';
 import '../shared/i18n/index.dart';
 import '../shared/theme/tsundoku_tokens.dart';
+import '../shared/ui/smooth_scroll_controller.dart';
 
 enum SettingsTab {
   sources('sources'),
@@ -75,11 +76,18 @@ class SettingsView extends ConsumerStatefulWidget {
 
 class SettingsViewState extends ConsumerState<SettingsView> {
   late SettingsTab _activeTab;
+  final SmoothScrollController _sidebarScroll = SmoothScrollController();
 
   @override
   void initState() {
     super.initState();
     _activeTab = widget.initialTab;
+  }
+
+  @override
+  void dispose() {
+    _sidebarScroll.dispose();
+    super.dispose();
   }
 
   @override
@@ -247,7 +255,10 @@ class SettingsViewState extends ConsumerState<SettingsView> {
               Expanded(
                 child: Container(
                   color: const Color(0x66151A26), // bg-[#151a26]/40
-                  child: _buildTabContent(_activeTab),
+                  child: SmoothScrollScope(
+                    key: ValueKey(_activeTab),
+                    child: _buildTabContent(_activeTab),
+                  ),
                 ),
               ),
             ],
@@ -269,6 +280,7 @@ class SettingsViewState extends ConsumerState<SettingsView> {
               ),
               padding: const EdgeInsets.all(12), // p-3
               child: ListView.separated(
+                controller: _sidebarScroll,
                 itemCount: visibleTabs.length,
                 separatorBuilder: (context, index) => const SizedBox(height: 6), // space-y-1.5
                 itemBuilder: (context, index) {
@@ -317,7 +329,10 @@ class SettingsViewState extends ConsumerState<SettingsView> {
             Expanded(
               child: Container(
                 color: const Color(0x66151A26), // bg-[#151a26]/40
-                child: _buildTabContent(_activeTab),
+                child: SmoothScrollScope(
+                  key: ValueKey(_activeTab),
+                  child: _buildTabContent(_activeTab),
+                ),
               ),
             ),
           ],

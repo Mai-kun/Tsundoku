@@ -16,6 +16,7 @@ import '../shared/i18n/index.dart';
 import '../shared/types/index.dart';
 import '../shared/theme/tsundoku_tokens.dart';
 import '../shared/theme/tsundoku_theme.dart';
+import '../shared/ui/tsundoku_image.dart';
 import '../widgets/media-detail/season_row.dart';
 
 /// rose-200 (Tailwind-литерал вне ThemeExtension).
@@ -333,11 +334,8 @@ class _ShowHeaderCard extends ConsumerWidget {
               ),
               clipBehavior: Clip.antiAlias,
               child: show.coverUrl != null
-                  ? Image.network(
-                      show.coverUrl!.startsWith('http://') ||
-                              show.coverUrl!.startsWith('https://')
-                          ? show.coverUrl!
-                          : '${ref.watch(apiBaseUrlProvider)}${show.coverUrl!}',
+                  ? TsundokuImage(
+                      src: show.coverUrl,
                       fit: BoxFit.cover,
                       semanticLabel: show.title, // alt
                       errorBuilder: (_, _, _) => const SizedBox.expand(),

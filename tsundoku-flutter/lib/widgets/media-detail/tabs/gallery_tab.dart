@@ -19,6 +19,7 @@ import '../../../shared/ui/confirm_dialog.dart';
 import '../../../shared/ui/context_menu_controller.dart';
 import '../../../shared/ui/lightbox.dart';
 import '../../../shared/ui/toast.dart';
+import '../../../shared/ui/tsundoku_image.dart';
 
 /// Скриншот в буфер: PNG-перекодирование при необходимости (Canvas ⏭️ —
 /// decode→PNG-кадр делает dart:ui; если данные уже PNG — как есть).
@@ -481,12 +482,10 @@ class _GalleryCardState extends State<_GalleryCard> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.network(
-                entry.thumbUrl.startsWith('http')
-                    ? entry.thumbUrl
-                    : '${widget.apiBaseUrl}${entry.thumbUrl}',
+              TsundokuImage(
+                imageUrl: entry.thumbUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => Container(
+                errorWidget: Container(
                   color: Colors.black.withAlpha(51),
                 ),
               ),

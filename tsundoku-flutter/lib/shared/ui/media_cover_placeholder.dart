@@ -8,6 +8,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../i18n/index.dart';
+import 'tsundoku_image.dart';
 
 class MediaCoverPlaceholder extends ConsumerWidget {
   /// Переопределяет label (по умолчанию activity.coverMissing).
@@ -40,10 +41,10 @@ class MediaCoverPlaceholder extends ConsumerWidget {
             child: Image.asset(
               'assets/images/placeholder-404.jpg',
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Image.network(
-                '/placeholder-404.jpg',
+              errorBuilder: (_, _, _) => const TsundokuImage(
+                imageUrl: '/placeholder-404.jpg',
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                errorWidget: SizedBox.shrink(),
               ),
             ),
           ),

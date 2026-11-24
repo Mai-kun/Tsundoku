@@ -14,6 +14,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../shared/i18n/index.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
 import '../../../shared/types/index.dart';
+import '../../../shared/ui/tsundoku_image.dart';
 import 'progress_card.dart';
 
 /// Игровая секция (1-в-1 с GameDetailSection.svelte).
@@ -543,13 +544,12 @@ class _AchievementCard extends StatelessWidget {
                           color: Colors.black.withAlpha(102), // bg-black/40
                           child: Opacity(
                             opacity: isUnlocked ? 1.0 : 0.6, // grayscale/contrast ⏭️
-                            child: Image.network(
-                              ach.iconUrl!,
+                            child: TsundokuImage(
+                              imageUrl: ach.iconUrl,
                               fit: BoxFit.cover,
                               width: 40,
                               height: 40,
-                              errorBuilder: (_, _, _) =>
-                                  const SizedBox.shrink(),
+                              errorWidget: const SizedBox.shrink(),
                             ),
                           ),
                         ),

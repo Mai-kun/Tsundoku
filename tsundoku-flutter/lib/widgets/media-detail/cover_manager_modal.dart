@@ -20,6 +20,7 @@ import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/types/index.dart';
 import '../../shared/ui/modal.dart';
 import '../../shared/ui/toast.dart';
+import '../../shared/ui/tsundoku_image.dart';
 
 // Tailwind-литералы (вне ThemeExtension — как в детальных секциях).
 const Color _kIndigo600 = Color(0xFF4F46E5);
@@ -1088,12 +1089,11 @@ class _CoverTileState extends State<_CoverTile> {
             child: AnimatedScale(
               scale: _hovered ? 1.05 : 1.0,
               duration: const Duration(milliseconds: 200), // duration-200
-              child: Image.network(
-                widget.imageUrl,
+              child: TsundokuImage(
+                imageUrl: widget.imageUrl,
                 fit: BoxFit.cover,
                 semanticLabel: widget.alt, // alt
-                errorBuilder: (context, error, stackTrace) =>
-                    const ColoredBox(color: Color(0xFF12151C)),
+                errorWidget: const ColoredBox(color: Color(0xFF12151C)),
               ),
             ),
           ),

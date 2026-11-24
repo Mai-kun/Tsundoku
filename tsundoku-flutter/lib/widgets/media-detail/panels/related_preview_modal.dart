@@ -10,12 +10,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../entities/media/model/cover_url.dart';
 import '../../../shared/i18n/index.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
 import '../../../shared/types/index.dart';
 import '../../../shared/ui/modal.dart';
 import '../../../shared/ui/popover_menu.dart';
+import '../../../shared/ui/tsundoku_image.dart';
 import '../detail_formatters.dart';
 import '../detail_types.dart';
 
@@ -106,9 +106,13 @@ class RelatedPreviewModal extends ConsumerWidget {
                                 clipBehavior: Clip.antiAlias,
                                 child: entry.coverUrl != null &&
                                         entry.coverUrl!.isNotEmpty
-                                    ? Image.network(
-                                        proxiedExternalCoverUrl(entry.coverUrl!),
+                                    ? TsundokuImage(
+                                        imageUrl: entry.coverUrl,
                                         fit: BoxFit.cover,
+                                        errorWidget: Center(
+                                          child: Icon(LucideIcons.image,
+                                              size: 32, color: th.textMuted),
+                                        ),
                                       )
                                     : Center(
                                         child: Icon(LucideIcons.image,

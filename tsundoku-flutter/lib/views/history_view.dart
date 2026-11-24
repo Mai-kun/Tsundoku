@@ -20,7 +20,9 @@ import '../shared/theme/tsundoku_tokens.dart';
 import '../shared/types/enums.dart';
 import '../shared/types/models.dart';
 import '../shared/ui/confirm_dialog.dart';
+import '../shared/ui/segmented_control.dart';
 import '../shared/ui/toast.dart';
+import '../shared/ui/tsundoku_image.dart';
 import '../shared/utils/history_formatters.dart';
 
 class HistoryView extends ConsumerStatefulWidget {
@@ -490,32 +492,21 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
 
   // ── Tab switcher pills ────────────────────────────────────────────────────
   Widget _buildTabSwitcher(I18nDictionary t, TsundokuTheme tokens) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: tokens.bgCard,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _TabPill(
-            active: _activeTab == 'chronicle',
-            icon: LucideIcons.calendarDays,
-            label: t.tr('views.tabChronicle'),
-            onTap: () => _switchTab('chronicle'),
-            tokens: tokens,
-          ),
-          const SizedBox(width: 4),
-          _TabPill(
-            active: _activeTab == 'activity',
-            icon: LucideIcons.history,
-            label: t.tr('views.tabActivity'),
-            onTap: () => _switchTab('activity'),
-            tokens: tokens,
-          ),
-        ],
-      ),
+    return TsundokuSegmentedControl<String>(
+      value: _activeTab,
+      options: [
+        SegmentedOption(
+          value: 'chronicle',
+          label: t.tr('views.tabChronicle'),
+          icon: LucideIcons.calendarDays,
+        ),
+        SegmentedOption(
+          value: 'activity',
+          label: t.tr('views.tabActivity'),
+          icon: LucideIcons.history,
+        ),
+      ],
+      onChanged: (val) => _switchTab(val),
     );
   }
 
@@ -605,29 +596,23 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
           runSpacing: 12,
           children: [
             // Scale toggle
-            Container(
+            TsundokuSegmentedControl<TimelineScale>(
+              value: _scale,
               padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                color: tokens.bgCard,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _ScaleOption(
-                    active: _scale == 'months',
-                    label: t.tr('views.scaleMonths'),
-                    onTap: () => setState(() => _scale = 'months'),
-                    tokens: tokens,
-                  ),
-                  _ScaleOption(
-                    active: _scale == 'years',
-                    label: t.tr('views.scaleYears'),
-                    onTap: () => setState(() => _scale = 'years'),
-                    tokens: tokens,
-                  ),
-                ],
-              ),
+              fontSize: 12,
+              activeColor: tokens.accent.withAlpha(51), // accent/20
+              activeTextColor: tokens.accentSoft,
+              options: [
+                SegmentedOption(
+                  value: 'months',
+                  label: t.tr('views.scaleMonths'),
+                ),
+                SegmentedOption(
+                  value: 'years',
+                  label: t.tr('views.scaleYears'),
+                ),
+              ],
+              onChanged: (val) => setState(() => _scale = val),
             ),
 
             // Category chips
@@ -1346,95 +1331,6 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
   }
 }
 
-// ── Tab Pill ────────────────────────────────────────────────────────────────
-class _TabPill extends StatelessWidget {
-  final bool active;
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final TsundokuTheme tokens;
-
-  const _TabPill({
-    required this.active,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    required this.tokens,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: active ? tokens.accent : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 15,
-              color: active ? Colors.white : tokens.textMuted,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: active ? Colors.white : tokens.textMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Scale Option ─────────────────────────────────────────────────────────────
-class _ScaleOption extends StatelessWidget {
-  final bool active;
-  final String label;
-  final VoidCallback onTap;
-  final TsundokuTheme tokens;
-
-  const _ScaleOption({
-    required this.active,
-    required this.label,
-    required this.onTap,
-    required this.tokens,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: active ? tokens.accent.withAlpha(51) : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: active ? tokens.accentSoft : tokens.textMuted,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 // ── Chronicle Card (Months scale) ───────────────────────────────────────────
 class _ChronicleCard extends StatelessWidget {
   final ChronicleEntry entry;
@@ -1471,8 +1367,8 @@ class _ChronicleCard extends StatelessWidget {
                 children: [
                   if (entry.item.coverUrl != null &&
                       entry.item.coverUrl!.isNotEmpty)
-                    Image.network(
-                      entry.item.coverUrl!,
+                    TsundokuImage(
+                      src: entry.item.coverUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (_, error, stackTrace) =>
                           _fallbackCover(),
@@ -1601,8 +1497,8 @@ class _MiniCard extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (item.coverUrl != null && item.coverUrl!.isNotEmpty)
-              Image.network(
-                item.coverUrl!,
+              TsundokuImage(
+                src: item.coverUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (_, error, stackTrace) => _fallbackCover(),
               )

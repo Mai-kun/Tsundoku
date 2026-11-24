@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:tsundoku_flutter/shared/i18n/index.dart';
 import 'package:tsundoku_flutter/shared/theme/tsundoku_tokens.dart';
 import 'package:tsundoku_flutter/shared/types/dtos.dart';
+import 'package:tsundoku_flutter/shared/ui/tsundoku_image.dart';
 
 /// 1:1 порт `mediatracker-ui/src/widgets/goals/GoalCard.svelte`.
 ///
@@ -361,8 +362,8 @@ class _MediaThumb extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(5),
               child: coverUrl != null && coverUrl.isNotEmpty
-                  ? Image.network(
-                      coverUrl,
+                  ? TsundokuImage(
+                      src: coverUrl,
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,

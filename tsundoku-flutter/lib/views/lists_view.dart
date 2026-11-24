@@ -16,6 +16,7 @@ import '../shared/ui/button.dart';
 import '../shared/ui/confirm_dialog.dart';
 import '../shared/ui/media_cover_placeholder.dart';
 import '../shared/ui/toast.dart';
+import '../shared/ui/tsundoku_image.dart';
 import '../widgets/media-grid/media_grid.dart';
 
 class _SmartQueryData {
@@ -1293,8 +1294,8 @@ class ListsViewState extends ConsumerState<ListsView> {
           if (!_brokenCovers.contains(cover)) ...[
             Opacity(
               opacity: 0.25,
-              child: Image.network(
-                fullSizeCoverUrl(cover),
+              child: TsundokuImage(
+                src: fullSizeCoverUrl(cover),
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   _markBroken(cover);
@@ -1311,11 +1312,12 @@ class ListsViewState extends ConsumerState<ListsView> {
                 child: AspectRatio(
                   aspectRatio: 2 / 3,
                   child: !_brokenCovers.contains(cover)
-                      ? Image.network(
-                          fullSizeCoverUrl(cover),
+                      ? TsundokuImage(
+                          src: fullSizeCoverUrl(cover),
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) =>
                               const MediaCoverPlaceholder(),
+                          placeholder: const MediaCoverPlaceholder(),
                         )
                       : const MediaCoverPlaceholder(),
                 ),
@@ -1352,11 +1354,12 @@ class ListsViewState extends ConsumerState<ListsView> {
                   child: AspectRatio(
                     aspectRatio: 2 / 3,
                     child: !_brokenCovers.contains(cover)
-                        ? Image.network(
-                            fullSizeCoverUrl(cover),
+                        ? TsundokuImage(
+                            src: fullSizeCoverUrl(cover),
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) =>
                                 const MediaCoverPlaceholder(),
+                            placeholder: const MediaCoverPlaceholder(),
                           )
                         : const MediaCoverPlaceholder(),
                   ),

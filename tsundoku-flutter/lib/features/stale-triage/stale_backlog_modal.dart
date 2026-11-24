@@ -18,6 +18,7 @@ import '../../shared/i18n/index.dart';
 import '../../shared/types/index.dart';
 import '../../shared/ui/modal.dart';
 import '../../shared/ui/toast.dart';
+import '../../shared/ui/tsundoku_image.dart';
 
 class StaleBacklogModal extends ConsumerStatefulWidget {
   final bool isOpen;
@@ -572,10 +573,10 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
                   height: 84,
                   color: const Color(0x0DFFFFFF),
                   child: item.coverUrl != null && item.coverUrl!.isNotEmpty
-                      ? Image.network(
-                          item.coverUrl!,
+                      ? TsundokuImage(
+                          imageUrl: item.coverUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => const Center(
+                          errorWidget: const Center(
                             child: Icon(
                               LucideIcons.image,
                               size: 20,

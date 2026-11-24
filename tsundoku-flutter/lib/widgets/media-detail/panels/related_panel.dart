@@ -10,12 +10,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../entities/media/model/cover_url.dart';
 import '../../../entities/media/ui/media_status_badge.dart';
 import '../../../shared/api/api.dart';
 import '../../../shared/i18n/index.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
 import '../../../shared/types/index.dart';
+import '../../../shared/ui/tsundoku_image.dart';
 import '../detail_formatters.dart';
 import '../detail_types.dart';
 import '../relation_load_button.dart';
@@ -591,8 +591,8 @@ class _RelatedCard extends ConsumerWidget {
             fit: StackFit.expand,
             children: [
               if (rel.coverUrl != null && rel.coverUrl!.isNotEmpty)
-                Image.network(
-                  proxiedExternalCoverUrl(rel.coverUrl!),
+                TsundokuImage(
+                  imageUrl: rel.coverUrl,
                   fit: BoxFit.cover,
                 )
               else
@@ -835,8 +835,8 @@ class _TimelineRow extends StatelessWidget {
                           ? Stack(
                               fit: StackFit.expand,
                               children: [
-                                Image.network(
-                                  proxiedExternalCoverUrl(item.coverUrl!),
+                                TsundokuImage(
+                                  imageUrl: item.coverUrl,
                                   fit: BoxFit.cover,
                                 ),
                                 if (hasLocal)

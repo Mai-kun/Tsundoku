@@ -17,6 +17,7 @@ import '../../shared/api/api.dart';
 import '../../shared/i18n/index.dart';
 import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/types/index.dart' show TvSeason;
+import '../../shared/ui/tsundoku_image.dart';
 import '../../shared/utils/progress_debounce.dart';
 
 /// Строка сезона (1-в-1 с SeasonRow.svelte).
@@ -124,10 +125,8 @@ class _SeasonRowState extends ConsumerState<SeasonRow> {
       ),
       clipBehavior: Clip.antiAlias,
       child: season.coverUrl != null && season.coverUrl!.isNotEmpty
-          ? Image.network(
-              // Браузерный резолв /api/... от origin заменён явной склейкой
-              // с baseUrl (решение #25).
-              '${ref.watch(apiBaseUrlProvider)}${season.coverUrl!}',
+          ? TsundokuImage(
+              imageUrl: season.coverUrl,
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,

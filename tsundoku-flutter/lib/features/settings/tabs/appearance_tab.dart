@@ -11,6 +11,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../shared/i18n/index.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
+import '../../../shared/ui/tsundoku_image.dart';
 import '../../../shared/utils/ui_settings.dart';
 
 class AppearanceTab extends ConsumerWidget {
@@ -312,12 +313,12 @@ class AppearanceTab extends ConsumerWidget {
                     width: 64,
                     height: 64,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Image.network(
-                      iconId == 'default' ? '/icons/default.png' : '/icons/alt.png',
+                    errorBuilder: (_, _, _) => TsundokuImage(
+                      imageUrl: iconId == 'default' ? '/icons/default.png' : '/icons/alt.png',
                       width: 64,
                       height: 64,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Container(
+                      errorWidget: Container(
                         width: 64,
                         height: 64,
                         color: Colors.white.withAlpha(10),

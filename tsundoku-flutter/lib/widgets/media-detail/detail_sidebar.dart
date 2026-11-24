@@ -33,6 +33,8 @@ import '../../shared/ui/lightbox.dart';
 import '../../shared/ui/media_cover_placeholder.dart';
 import '../../shared/platform/platform.dart';
 import '../../shared/ui/panel.dart';
+import '../../shared/ui/text_field.dart';
+import '../../shared/ui/tsundoku_image.dart';
 import '../../shared/ui/popover_menu.dart';
 import '../../shared/ui/toast.dart';
 import '../../shared/utils/ui_settings.dart';
@@ -538,8 +540,8 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
                     media.title);
           }
         },
-        child: Image.network(
-          '${ref.watch(apiBaseUrlProvider)}${proxiedExternalCoverUrl(media.coverUrl!)}',
+        child: TsundokuImage(
+          src: media.coverUrl,
           fit: BoxFit.cover,
           alignment: Alignment.topCenter, // object-top
           semanticLabel: media.title, // alt
@@ -2096,7 +2098,7 @@ class _VoiceComboState extends ConsumerState<_VoiceCombo> {
       child: Row(
         children: [
           Expanded(
-            child: TextField(
+            child: TsundokuTextField(
               controller: _controller,
               onChanged: (value) {
                 state.widget.onWatchedOnInput(value);
@@ -2108,20 +2110,7 @@ class _VoiceComboState extends ConsumerState<_VoiceCombo> {
                 state._commitComboValue(state.widget.watchedOnInput);
               },
               textAlign: TextAlign.right,
-              style: const TextStyle(
-                  fontSize: 12, color: Colors.white), // text-xs
-              decoration: InputDecoration(
-                isDense: true,
-                filled: false,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 8), // px-2
-                hintText: t.tr('detail.watchedOnPlaceholder'),
-                hintStyle:
-                    TextStyle(color: Colors.white.withAlpha(77)), // /30
-              ),
+              placeholder: t.tr('detail.watchedOnPlaceholder'),
             ),
           ),
           TsundokuPopoverMenu<String>(

@@ -16,6 +16,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../shared/i18n/index.dart';
 import '../../../shared/platform/platform.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
+import '../../../shared/ui/tsundoku_image.dart';
 
 /// Секция трейлера (1-в-1 с TrailerSection.svelte).
 class TrailerSection extends ConsumerStatefulWidget {
@@ -80,10 +81,10 @@ class _TrailerSectionState extends ConsumerState<TrailerSection> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.network(
-              thumbnail,
+            TsundokuImage(
+              imageUrl: thumbnail,
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Container(color: Colors.black),
+              errorWidget: Container(color: Colors.black),
             ),
             // group-hover:bg-black/25 → /40.
             AnimatedContainer(

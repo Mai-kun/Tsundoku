@@ -12,7 +12,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../entities/media/model/cover_url.dart';
 import '../../entities/media/model/genre_label.dart';
 import '../../features/prefetch-details/external_detail_prefetch.dart';
 import '../../shared/api/api.dart';
@@ -22,6 +21,7 @@ import '../../shared/types/models.dart';
 import '../../shared/ui/media_cover_placeholder.dart';
 import '../../shared/ui/modal.dart';
 import '../../shared/ui/toast.dart';
+import '../../shared/ui/tsundoku_image.dart';
 import 'detail_formatters.dart' show joinOriginalTitle;
 import 'detail_header.dart';
 
@@ -574,8 +574,8 @@ class _ExternalDetailModalState extends ConsumerState<ExternalDetailModal> {
         ),
         clipBehavior: Clip.antiAlias,
         child: media.coverUrl != null && !_imgError
-            ? Image.network(
-                proxiedExternalCoverUrl(media.coverUrl!),
+            ? TsundokuImage(
+                src: media.coverUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -583,8 +583,9 @@ class _ExternalDetailModalState extends ConsumerState<ExternalDetailModal> {
                       setState(() => _imgError = true);
                     }
                   });
-                  return const SizedBox.expand();
+                  return const MediaCoverPlaceholder();
                 },
+                placeholder: const MediaCoverPlaceholder(),
               )
             : const MediaCoverPlaceholder(),
       ),

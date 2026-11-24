@@ -15,7 +15,6 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../entities/media/model/cover_url.dart';
 import '../../entities/media/ui/placeholder404.dart';
 import '../../shared/api/api.dart';
 import '../../shared/api/jobs_client.dart';
@@ -24,6 +23,7 @@ import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/types/index.dart';
 import '../../shared/ui/modal.dart';
 import '../../shared/ui/toast.dart';
+import '../../shared/ui/tsundoku_image.dart';
 import '../../shared/utils/url_media_parser.dart';
 import '../media-detail/external_detail_modal.dart';
 
@@ -3075,18 +3075,20 @@ class _CandidatePosterState extends State<_CandidatePoster> {
                     ),
                     clipBehavior: Clip.antiAlias,
                     child: hasCover && !widget.imgError
-                        ? Image.network(
-                            proxiedExternalCoverUrl(widget.candidate.coverUrl!),
+                        ? TsundokuImage(
+                            imageUrl: widget.candidate.coverUrl,
                             fit: BoxFit.cover,
                             width: double.infinity,
                             height: double.infinity,
-                            errorBuilder: (context, _, _) {
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                widget.onImgError();
-                              });
-                              return Container(
-                                  color: TsundokuTheme.of(context).bgCanvas);
-                            },
+                            errorWidget: Builder(
+                              builder: (context) {
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  widget.onImgError();
+                                });
+                                return Container(
+                                    color: TsundokuTheme.of(context).bgCanvas);
+                              },
+                            ),
                           )
                         : const Placeholder404(),
                   ),

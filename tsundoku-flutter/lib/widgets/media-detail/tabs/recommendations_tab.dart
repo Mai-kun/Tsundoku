@@ -9,9 +9,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../entities/media/model/cover_url.dart';
 import '../../../shared/i18n/index.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
+import '../../../shared/ui/tsundoku_image.dart';
 import '../detail_types.dart';
 
 /// Таб «Рекомендации» (1-в-1 с RecommendationsTab.svelte).
@@ -115,9 +115,13 @@ class _RecommendationCardState extends State<_RecommendationCard> {
                     ? AnimatedScale(
                         duration: const Duration(milliseconds: 300), // duration-300
                         scale: _hovered ? 1.05 : 1.0, // group-hover:scale-105
-                        child: Image.network(
-                          proxiedExternalCoverUrl(rec.coverUrl!),
+                        child: TsundokuImage(
+                          imageUrl: rec.coverUrl,
                           fit: BoxFit.cover,
+                          errorWidget: Center(
+                            child: Icon(LucideIcons.image,
+                                size: 24, color: th.textMuted),
+                          ),
                         ),
                       )
                     : Center(

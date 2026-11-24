@@ -14,10 +14,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../shared/api/api.dart';
 import '../../../shared/api/jobs_client.dart';
 import '../../../shared/i18n/index.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
+import '../../../shared/ui/tsundoku_image.dart';
 import 'placeholder404.dart';
 
 class MediaPoster extends ConsumerStatefulWidget {
@@ -69,13 +69,8 @@ class _MediaPosterState extends ConsumerState<MediaPoster> {
   @override
   Widget build(BuildContext context) {
     final t = ref.watch(tProvider);
-    // <img src="/..."> в браузере резолвится от origin сервера; в Dart
-    // склейка с baseUrl — 1-в-1 с TsundokuApi.absoluteUrl.
-    final baseUrl = ref.watch(apiBaseUrlProvider);
 
     final src = widget.src;
-    // Внешние URL приходят уже проксированными (proxiedExternalCoverUrl),
-    // поэтому ветка else — Placeholder404, как в Svelte.
     final showImage = src != null && src.startsWith('/') && !_imgError;
 
     return Stack(
@@ -84,8 +79,8 @@ class _MediaPosterState extends ConsumerState<MediaPoster> {
         // bg-canvas
         ColoredBox(color: TsundokuTheme.of(context).bgCanvas),
         if (showImage)
-          Image.network(
-            '$baseUrl$src',
+          TsundokuImage(
+            src: src,
             fit: BoxFit.cover, // object-cover
             semanticLabel: widget.alt, // alt
             errorBuilder: (context, error, stackTrace) {

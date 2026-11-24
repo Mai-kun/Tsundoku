@@ -34,6 +34,7 @@ import 'package:tsundoku_flutter/shared/types/dtos.dart';
 import 'package:tsundoku_flutter/shared/types/enums.dart';
 import 'package:tsundoku_flutter/shared/types/models.dart';
 import 'package:tsundoku_flutter/shared/ui/media_cover_placeholder.dart';
+import 'package:tsundoku_flutter/shared/ui/tsundoku_image.dart';
 
 class EditMediaWorkspace extends ConsumerStatefulWidget {
   final bool isOpen;
@@ -1031,11 +1032,10 @@ class _EditMediaWorkspaceState extends ConsumerState<EditMediaWorkspace>
                 child: _coverUrl.isEmpty
                     ? MediaCoverPlaceholder(
                         label: t.tr('activity.coverMissing'))
-                    : Image.network(
-                        fullSizeCoverUrl(_coverUrl),
+                    : TsundokuImage(
+                        imageUrl: fullSizeCoverUrl(_coverUrl),
                         fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) =>
-                            Container(color: th.bgSurface),
+                        errorWidget: Container(color: th.bgSurface),
                       ),
               ),
             ),
@@ -1104,11 +1104,10 @@ class _EditMediaWorkspaceState extends ConsumerState<EditMediaWorkspace>
                     child: _coverUrl.isEmpty
                         ? MediaCoverPlaceholder(
                             label: t.tr('activity.coverMissing'))
-                        : Image.network(
-                            fullSizeCoverUrl(_coverUrl),
+                        : TsundokuImage(
+                            imageUrl: fullSizeCoverUrl(_coverUrl),
                             fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) =>
-                                Container(color: th.bgSurface),
+                            errorWidget: Container(color: th.bgSurface),
                           ),
                   ),
                 ),

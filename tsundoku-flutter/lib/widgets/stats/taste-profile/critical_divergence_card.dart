@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:tsundoku_flutter/shared/i18n/index.dart';
 import 'package:tsundoku_flutter/shared/theme/tsundoku_tokens.dart';
 import 'package:tsundoku_flutter/shared/types/models.dart';
+import 'package:tsundoku_flutter/shared/ui/tsundoku_image.dart';
 
 /// 1:1 порт `mediatracker-ui/src/widgets/stats/taste-profile/CriticalDivergenceCard.svelte`.
 ///
@@ -260,13 +261,12 @@ class _DivergenceItemCard extends StatelessWidget {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(6), // rounded-md
                           child: item.coverUrl != null && item.coverUrl!.isNotEmpty
-                              ? Image.network(
-                                  item.coverUrl!,
+                              ? TsundokuImage(
+                                  imageUrl: item.coverUrl!,
                                   width: 56, // w-14
                                   height: 80, // h-20
                                   fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Container(
+                                  errorWidget: Container(
                                     width: 56,
                                     height: 80,
                                     color: Colors.white.withAlpha(13), // bg-white/5

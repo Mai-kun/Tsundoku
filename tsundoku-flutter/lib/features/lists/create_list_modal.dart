@@ -16,6 +16,8 @@ import 'package:tsundoku_flutter/shared/types/dtos.dart';
 import 'package:tsundoku_flutter/shared/types/models.dart';
 import 'package:tsundoku_flutter/shared/ui/media_cover_placeholder.dart';
 import 'package:tsundoku_flutter/shared/ui/modal.dart';
+import 'package:tsundoku_flutter/shared/ui/text_field.dart';
+import 'package:tsundoku_flutter/shared/ui/tsundoku_image.dart';
 
 const List<String> kCustomListColors = <String>[
   '#473bb8',
@@ -312,33 +314,10 @@ class _CreateListModalState extends ConsumerState<CreateListModal> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    TextField(
+                    TsundokuTextField(
                       controller: _nameController,
                       maxLength: 100,
                       onChanged: (_) => setState(() {}),
-                      style: const TextStyle(fontSize: 14, color: Colors.white),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: const Color(0x0AFFFFFF),
-                        counterText: '',
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide:
-                              BorderSide(color: accentColor),
-                        ),
-                      ),
                     ),
                     const SizedBox(height: 16),
 
@@ -352,33 +331,11 @@ class _CreateListModalState extends ConsumerState<CreateListModal> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    TextField(
+                    TsundokuTextField(
                       controller: _descriptionController,
                       maxLength: 500,
+                      multiline: true,
                       maxLines: 2,
-                      style: const TextStyle(fontSize: 14, color: Colors.white),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: const Color(0x0AFFFFFF),
-                        counterText: '',
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide:
-                              BorderSide(color: accentColor),
-                        ),
-                      ),
                     ),
                     const SizedBox(height: 16),
 
@@ -574,12 +531,10 @@ class _CreateListModalState extends ConsumerState<CreateListModal> {
                                         ),
                                       ),
                                       child: item.coverUrl != null
-                                          ? Image.network(
-                                              fullSizeCoverUrl(item.coverUrl!),
+                                          ? TsundokuImage(
+                                              imageUrl: fullSizeCoverUrl(item.coverUrl!),
                                               fit: BoxFit.cover,
-                                              errorBuilder:
-                                                  (context, error, stackTrace) =>
-                                                      const MediaCoverPlaceholder(),
+                                              errorWidget: const MediaCoverPlaceholder(),
                                             )
                                           : const MediaCoverPlaceholder(),
                                     ),

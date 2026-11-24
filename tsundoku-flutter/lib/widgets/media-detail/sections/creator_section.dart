@@ -10,12 +10,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../entities/media/model/cover_url.dart';
 import '../../../shared/api/api.dart';
 import '../../../shared/i18n/index.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
 import '../../../shared/types/index.dart';
 import '../../../shared/ui/lightbox.dart';
+import '../../../shared/ui/tsundoku_image.dart';
 import '../../../shared/utils/ui_settings.dart';
 import '../../../shared/utils/unknown_creator.dart';
 import 'people_size_toggle.dart';
@@ -171,8 +171,8 @@ class _CreatorSectionState extends ConsumerState<CreatorSection> {
                               color: th.accent.withAlpha(77)), // border-accent/30
                           color: th.accent.withAlpha(38), // bg-accent/15
                         ),
-                        child: Image.network(
-                          widget.imageUrl!,
+                        child: TsundokuImage(
+                          src: widget.imageUrl,
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -536,8 +536,8 @@ class _StaffCard extends StatelessWidget {
                     border: Border.all(
                         color: Colors.white.withAlpha(26)), // ring-white/10
                   ),
-                  child: Image.network(
-                    person.imageUrl!,
+                  child: TsundokuImage(
+                    src: person.imageUrl,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -660,8 +660,8 @@ class _OtherWorkCard extends StatelessWidget {
                 child: AspectRatio(
                   aspectRatio: 2 / 3, // aspect-[2/3]
                   child: item.coverUrl != null
-                      ? Image.network(
-                          proxiedExternalCoverUrl(item.coverUrl!),
+                      ? TsundokuImage(
+                          src: item.coverUrl,
                           fit: BoxFit.cover,
                         )
                       : Center(

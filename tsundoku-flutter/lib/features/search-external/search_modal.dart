@@ -14,14 +14,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../entities/media/model/cover_url.dart';
 import '../prefetch-details/external_detail_prefetch.dart';
 import '../../shared/api/api.dart';
 import '../../shared/api/jobs_client.dart';
 import '../../shared/i18n/index.dart';
 import '../../shared/types/index.dart';
 import '../../shared/ui/modal.dart';
+import '../../shared/ui/text_field.dart';
 import '../../shared/ui/toast.dart';
+import '../../shared/ui/tsundoku_image.dart';
 import '../../shared/utils/url_media_parser.dart';
 import '../../widgets/media-detail/external_detail_modal.dart';
 
@@ -1102,74 +1103,47 @@ class _SearchModalState extends ConsumerState<SearchModal> {
                       children: [
                         // Search text field
                         Expanded(
-                          child: TextField(
+                          child: TsundokuTextField(
                             controller: _queryController,
-                            style: const TextStyle(
-                                fontSize: 14, color: Colors.white),
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: const Color(0x14FFFFFF),
-                              prefixIcon: const Icon(
-                                LucideIcons.search,
-                                size: 16,
-                                color: Color(0xFF94A3B8),
-                              ),
-                              suffixIcon: badge != null
-                                  ? Padding(
-                                      padding: const EdgeInsets.only(right: 8.0),
-                                      child: Align(
-                                        alignment: Alignment.centerRight,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 2,
+                            prefixIcon: const Icon(
+                              LucideIcons.search,
+                              size: 16,
+                              color: Color(0xFF94A3B8),
+                            ),
+                            suffix: badge != null
+                                ? Padding(
+                                    padding: const EdgeInsets.only(right: 8.0),
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0x0FFFFFFF),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          border: Border.all(
+                                            color: const Color(0x1AFFFFFF),
                                           ),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0x0FFFFFFF),
-                                            borderRadius:
-                                                BorderRadius.circular(6),
-                                            border: Border.all(
-                                              color: const Color(0x1AFFFFFF),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            badge.type == QueryBadgeType.link
-                                                ? t.tr('searchModal.badgeLink')
-                                                : t.tr('searchModal.badgeIsbn'),
-                                            style: const TextStyle(
-                                              fontSize: 10,
-                                              fontFamily: 'monospace',
-                                              color: Color(0xB3FFFFFF),
-                                            ),
+                                        ),
+                                        child: Text(
+                                          badge.type == QueryBadgeType.link
+                                              ? t.tr('searchModal.badgeLink')
+                                              : t.tr('searchModal.badgeIsbn'),
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            fontFamily: 'monospace',
+                                            color: Color(0xB3FFFFFF),
                                           ),
                                         ),
                                       ),
-                                    )
-                                  : null,
-                              hintText: t.tf('searchModal.placeholder',
-                                  [_labelForCategory(_activeType, t)]),
-                              hintStyle: const TextStyle(
-                                  color: Color(0xFF64748B), fontSize: 13),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide:
-                                    const BorderSide(color: Color(0x14FFFFFF)),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide:
-                                    const BorderSide(color: Color(0x14FFFFFF)),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide:
-                                    const BorderSide(color: Color(0x806366F1)),
-                              ),
-                            ),
+                                    ),
+                                  )
+                                : null,
+                            placeholder: t.tf('searchModal.placeholder',
+                                [_labelForCategory(_activeType, t)]),
                             onChanged: (_) => _triggerSearch(),
                             onSubmitted: (_) => _triggerSearch(immediate: true),
                           ),
@@ -1851,11 +1825,9 @@ class _SearchModalState extends ConsumerState<SearchModal> {
                 height: posterHeight,
                 color: const Color(0xFF151821),
                 child: result.coverUrl != null && result.coverUrl!.isNotEmpty
-                    ? Image.network(
-                        proxiedExternalCoverUrl(
-                          result.coverUrl!,
-                          forceRefresh: _coverForceRefresh,
-                        ),
+                    ? TsundokuImage(
+                        src: result.coverUrl,
+                        forceRefresh: _coverForceRefresh,
                         fit: BoxFit.cover,
                         errorBuilder: (_, _, _) => const Center(
                           child: Icon(

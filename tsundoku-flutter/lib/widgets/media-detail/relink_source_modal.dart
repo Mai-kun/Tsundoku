@@ -12,7 +12,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../entities/media/model/cover_url.dart';
 import '../../entities/media/model/media_labels.dart';
 import '../../shared/api/api.dart';
 import '../../shared/i18n/index.dart';
@@ -20,6 +19,7 @@ import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/types/index.dart';
 import '../../shared/ui/modal.dart';
 import '../../shared/ui/popover_menu.dart';
+import '../../shared/ui/tsundoku_image.dart';
 
 const Color _kAccentSoft = Color(0xFFA5B4FC); // --color-accent-soft
 const Color _kInputBg = Color(0xFF1C202B); // bg-[#1c202b]
@@ -612,12 +612,11 @@ class _ResultRow extends StatelessWidget {
             ),
             clipBehavior: Clip.antiAlias,
             child: result.coverUrl != null
-                ? Image.network(
-                    proxiedExternalCoverUrl(result.coverUrl!),
+                ? TsundokuImage(
+                    imageUrl: result.coverUrl,
                     fit: BoxFit.cover,
                     semanticLabel: result.title, // alt
-                    errorBuilder: (context, error, stackTrace) =>
-                        const SizedBox.expand(),
+                    errorWidget: const SizedBox.expand(),
                   )
                 : Center(
                     child: Icon(LucideIcons.image,

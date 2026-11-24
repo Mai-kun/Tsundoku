@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'lightbox.dart';
+import 'tsundoku_image.dart';
 
 /// Показывает лайтбокс, если [lightboxProvider] открыт; монтируется в
 /// AppShell (Фаза 3) поверх всех view.
@@ -61,10 +62,10 @@ class ImageLightbox extends ConsumerWidget {
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              url,
+                            child: TsundokuImage(
+                              imageUrl: url,
                               fit: BoxFit.contain,
-                              errorBuilder: (_, _, _) =>
+                              errorWidget:
                                   const SizedBox(width: 200, height: 200),
                             ),
                           ),

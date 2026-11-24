@@ -15,6 +15,7 @@ import '../../../shared/i18n/index.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
 import '../../../shared/types/index.dart';
 import '../../../shared/ui/lightbox.dart';
+import '../../../shared/ui/tsundoku_image.dart';
 import '../../../shared/utils/ui_settings.dart';
 import 'people_size_toggle.dart';
 
@@ -542,8 +543,8 @@ class _PortraitCard extends StatelessWidget {
                             .read(lightboxProvider.notifier)
                             .openLightbox(entry.photoUrl, entry.name);
                       },
-                      child: Image.network(
-                        entry.photoUrl!,
+                      child: TsundokuImage(
+                        src: entry.photoUrl,
                         fit: BoxFit.cover,
                         alignment: Alignment.topCenter, // object-top
                       ),
@@ -561,8 +562,8 @@ class _PortraitCard extends StatelessWidget {
                     AnimatedOpacity(
                       duration: const Duration(milliseconds: 200),
                       opacity: revealed ? 1 : 0,
-                      child: Image.network(
-                        entry.voicePhotoUrl!,
+                      child: TsundokuImage(
+                        src: entry.voicePhotoUrl,
                         fit: BoxFit.cover,
                       ),
                     ),
@@ -589,8 +590,8 @@ class _PortraitCard extends StatelessWidget {
                                   width: 2), // ring-[#12151c]
                             ),
                             child: ClipOval(
-                              child: Image.network(
-                                entry.voicePhotoUrl!,
+                              child: TsundokuImage(
+                                src: entry.voicePhotoUrl,
                                 fit: BoxFit.cover,
                               ),
                             ),
@@ -698,8 +699,8 @@ class _RowEntry extends StatelessWidget {
                     border: Border.all(
                         color: Colors.white.withAlpha(26)), // ring-white/10
                   ),
-                  child: Image.network(
-                    entry.photoUrl!,
+                  child: TsundokuImage(
+                    src: entry.photoUrl,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -788,8 +789,8 @@ class _RowEntry extends StatelessWidget {
                           border: Border.all(
                               color: Colors.white.withAlpha(26)),
                         ),
-                        child: Image.network(
-                          entry.voicePhotoUrl!,
+                        child: TsundokuImage(
+                          src: entry.voicePhotoUrl,
                           fit: BoxFit.cover,
                         ),
                       ),

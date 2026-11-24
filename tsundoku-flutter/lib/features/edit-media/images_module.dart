@@ -20,6 +20,7 @@ import 'package:tsundoku_flutter/shared/platform/platform.dart';
 import 'package:tsundoku_flutter/shared/i18n/index.dart';
 import 'package:tsundoku_flutter/shared/theme/tsundoku_tokens.dart';
 import 'package:tsundoku_flutter/shared/types/models.dart';
+import 'package:tsundoku_flutter/shared/ui/tsundoku_image.dart';
 
 class ImagesModule extends ConsumerStatefulWidget {
   final bool flat;
@@ -470,10 +471,10 @@ class _CoverTile extends StatelessWidget {
             children: [
               // Превью-картинка (thumbUrl через MediaCover — baseUrl-склейка
               // уже в провайдере покрывающем images; здесь сырой URL).
-              Image.network(
-                cover.thumbUrl,
+              TsundokuImage(
+                imageUrl: cover.thumbUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => Container(color: th.bgSurface),
+                errorWidget: Container(color: th.bgSurface),
               ),
               if (active)
                 Positioned(

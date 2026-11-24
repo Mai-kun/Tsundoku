@@ -23,6 +23,7 @@ import '../shared/i18n/index.dart';
 import '../shared/theme/tsundoku_tokens.dart';
 import '../shared/types/dtos.dart';
 import '../shared/ui/media_cover_placeholder.dart';
+import '../shared/ui/tsundoku_image.dart';
 import '../shared/ui/popover_menu.dart';
 import '../shared/ui/toast.dart';
 
@@ -729,11 +730,12 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
                               height: 60,
                               child: item.coverUrl != null &&
                                       !_brokenCovers.contains(item.coverUrl)
-                                  ? Image.network(
-                                      item.coverUrl!,
+                                  ? TsundokuImage(
+                                      src: item.coverUrl,
                                       fit: BoxFit.cover,
                                       errorBuilder: (context, error, stackTrace) =>
                                           const MediaCoverPlaceholder(),
+                                      placeholder: const MediaCoverPlaceholder(),
                                     )
                                   : const MediaCoverPlaceholder(),
                             ),
@@ -1629,11 +1631,12 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
                 height: 72,
                 child: item.coverUrl != null &&
                         !_brokenCovers.contains(item.coverUrl)
-                    ? Image.network(
-                        item.coverUrl!,
+                    ? TsundokuImage(
+                        src: item.coverUrl,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) =>
                             const MediaCoverPlaceholder(),
+                        placeholder: const MediaCoverPlaceholder(),
                       )
                     : const MediaCoverPlaceholder(),
               ),
@@ -1786,11 +1789,12 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
         borderRadius: BorderRadius.circular(4),
         child: item.coverUrl != null &&
                 !_brokenCovers.contains(item.coverUrl)
-            ? Image.network(
-                item.coverUrl!,
+            ? TsundokuImage(
+                src: item.coverUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) =>
                     const MediaCoverPlaceholder(),
+                placeholder: const MediaCoverPlaceholder(),
               )
             : const MediaCoverPlaceholder(),
       ),
@@ -1931,11 +1935,12 @@ class _FeedCard extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: item.coverUrl != null && item.coverUrl!.isNotEmpty
-                        ? Image.network(
-                            item.coverUrl!,
+                        ? TsundokuImage(
+                            src: item.coverUrl,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) =>
                                 const MediaCoverPlaceholder(),
+                            placeholder: const MediaCoverPlaceholder(),
                           )
                         : const MediaCoverPlaceholder(),
                   ),

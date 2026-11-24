@@ -316,7 +316,9 @@ class _CreateListModalState extends ConsumerState<CreateListModal> {
                     const SizedBox(height: 6),
                     TsundokuTextField(
                       controller: _nameController,
+                      height: 38,
                       maxLength: 100,
+                      placeholder: t.tr('views.listName'),
                       onChanged: (_) => setState(() {}),
                     ),
                     const SizedBox(height: 16),
@@ -335,7 +337,9 @@ class _CreateListModalState extends ConsumerState<CreateListModal> {
                       controller: _descriptionController,
                       maxLength: 500,
                       multiline: true,
-                      maxLines: 2,
+                      minLines: 3,
+                      maxLines: 4,
+                      placeholder: t.tr('views.listDescription'),
                     ),
                     const SizedBox(height: 16),
 
@@ -430,36 +434,31 @@ class _CreateListModalState extends ConsumerState<CreateListModal> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Smart List block
+                    // Smart List block (без внешней матрёшки-рамки)
                     if (_listType == 'smart') ...[
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0x0DA78BFA), // violet-400/5
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0x33A78BFA), // violet-400/20
-                          ),
-                        ),
-                        child: widget.smartListBuilder != null
-                            ? widget.smartListBuilder!(
-                                context,
-                                query: _smartQuery,
-                                onQueryChange: (q) =>
-                                    setState(() => _smartQuery = q),
-                                onMatchesChange: (m) =>
-                                    setState(() => _matchedItems = m),
-                                allMedia: _allMedia,
-                              )
-                            : SmartListBuilder(
-                                query: _smartQuery,
-                                onQueryChange: (q) =>
-                                    setState(() => _smartQuery = q),
-                                onMatchesChange: (m) =>
-                                    setState(() => _matchedItems = m),
-                                allMedia: _allMedia,
-                              ),
-                      ),
+                      const Divider(color: Colors.white10, height: 1),
+                      const SizedBox(height: 16),
+                      widget.smartListBuilder != null
+                          ? widget.smartListBuilder!(
+                              context,
+                              query: _smartQuery,
+                              onQueryChange: (q) =>
+                                  setState(() => _smartQuery = q),
+                              onMatchesChange: (m) =>
+                                  setState(() => _matchedItems = m),
+                              allMedia: _allMedia,
+                            )
+                          : SmartListBuilder(
+                              query: _smartQuery,
+                              onQueryChange: (q) =>
+                                  setState(() => _smartQuery = q),
+                              onMatchesChange: (m) {
+                                if (mounted) {
+                                  setState(() => _matchedItems = m);
+                                }
+                              },
+                              allMedia: _allMedia,
+                            ),
                       const SizedBox(height: 16),
                     ],
 

@@ -8,6 +8,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:tsundoku_flutter/features/import-media/import_panel.dart';
 import 'package:tsundoku_flutter/shared/api/api.dart';
 import 'package:tsundoku_flutter/shared/theme/tsundoku_theme.dart';
+import 'package:tsundoku_flutter/shared/ui/text_field.dart';
 
 class _CapturingAdapter implements HttpClientAdapter {
   final List<RequestOptions> requests = [];
@@ -178,7 +179,11 @@ void main() {
 
     // Enter username
     await tester.enterText(
-        find.widgetWithText(TextField, 'Никнейм AniList'), 'Mai-kun');
+        find.descendant(
+          of: find.byType(TsundokuTextField),
+          matching: find.byType(TextField),
+        ).first,
+        'Mai-kun');
     await tester.pumpAndSettle();
 
     // Click import again
@@ -213,7 +218,10 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-        find.widgetWithText(TextField, 'Steam ID или ссылка на профиль'),
+        find.descendant(
+          of: find.byType(TsundokuTextField),
+          matching: find.byType(TextField),
+        ).first,
         '76561198000000001');
     await tester.pumpAndSettle();
 

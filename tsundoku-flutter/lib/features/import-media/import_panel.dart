@@ -860,20 +860,16 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                     decoration: BoxDecoration(
-                      color: isSelected ? pTheme.surface : const Color(0xCC181E2C),
+                      color: isSelected
+                          ? pTheme.accent.withValues(alpha: 0.08)
+                          : const Color(0xCC181E2C),
                       borderRadius: BorderRadius.circular(12), // rounded-xl
                       border: Border.all(
-                        color: isSelected ? pTheme.accent : Colors.white.withAlpha(25),
-                        width: isSelected ? 1.5 : 1.0,
+                        color: isSelected
+                            ? pTheme.accent.withValues(alpha: 0.40)
+                            : Colors.white.withAlpha(25),
+                        width: 1.0,
                       ),
-                      boxShadow: isSelected
-                          ? [
-                              BoxShadow(
-                                color: pTheme.border.withAlpha(120),
-                                blurRadius: 4,
-                              )
-                            ]
-                          : null,
                     ),
                     child: Row(
                       children: [
@@ -881,10 +877,14 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: pTheme.surface,
+                            color: isSelected
+                                ? pTheme.accent.withValues(alpha: 0.10)
+                                : Colors.white.withValues(alpha: 0.04),
                             borderRadius: BorderRadius.circular(8), // rounded-lg
                             border: Border.all(
-                              color: pTheme.border,
+                              color: isSelected
+                                  ? pTheme.accent.withValues(alpha: 0.25)
+                                  : Colors.white.withAlpha(20),
                             ),
                           ),
                           alignment: Alignment.center,
@@ -999,23 +999,37 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.white.withAlpha(20)),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: TsundokuTextField(
-                    controller: _anilistUsernameController,
-                    onSubmitted: (_) => _runImport(),
-                    labelText: t.tr('importModal.anilistUsername'),
-                    placeholder: t.tr('importModal.anilistUsernamePlaceholder'),
+                Text(
+                  t.tr('importModal.anilistUsername'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: theme.textSecondary,
                   ),
                 ),
-                const SizedBox(width: 8),
-                TsundokuButton(
-                  variant: ButtonVariant.primary,
-                  size: ButtonSize.md,
-                  onPressed: _busy ? null : _runImport,
-                  loading: _busy,
-                  child: Text(t.tr('importModal.import')),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TsundokuTextField(
+                        controller: _anilistUsernameController,
+                        height: 38,
+                        onSubmitted: (_) => _runImport(),
+                        placeholder: t.tr('importModal.anilistUsernamePlaceholder'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TsundokuButton(
+                      variant: ButtonVariant.primary,
+                      size: ButtonSize.md,
+                      onPressed: _busy ? null : _runImport,
+                      loading: _busy,
+                      child: Text(t.tr('importModal.import')),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1092,17 +1106,35 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  'Steam ID или ссылка на профиль',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: theme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 6),
                 TsundokuTextField(
                   controller: _steamProfileController,
-                  labelText: 'Steam ID или ссылка на профиль',
+                  height: 38,
                   placeholder:
                       'https://steamcommunity.com/id/... or 76561198...',
                 ),
                 const SizedBox(height: 14),
+                Text(
+                  'Steam Web API Key (опционально)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: theme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 6),
                 TsundokuTextField(
                   controller: _steamApiKeyController,
+                  height: 38,
                   obscureText: true,
-                  labelText: 'Steam Web API Key (опционально)',
                   placeholder: _steamKeyConfigured
                       ? 'Ключ уже сохранён на сервере'
                       : '••••••••••••••••••••••••••••••••',
@@ -1257,19 +1289,17 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
 
                       return InkWell(
                         onTap: () => _toggleMangalibSite(site.id),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 8),
                           decoration: BoxDecoration(
                             color: isChecked
-                                ? st.surface
+                                ? Colors.white.withValues(alpha: 0.06)
                                 : const Color(0x05FFFFFF),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: isChecked
-                                  ? st.border
-                                  : const Color(0x14FFFFFF),
+                              color: Colors.white.withValues(alpha: 0.08),
                             ),
                           ),
                           child: Row(
@@ -1279,19 +1309,19 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                                 height: 16,
                                 decoration: BoxDecoration(
                                   color: isChecked
-                                      ? st.accent.withAlpha(80)
+                                      ? theme.accent.withValues(alpha: 0.25)
                                       : Colors.black26,
                                   borderRadius: BorderRadius.circular(4),
                                   border: Border.all(
                                     color: isChecked
-                                        ? st.accent
+                                        ? theme.accent.withValues(alpha: 0.65)
                                         : Colors.white24,
                                   ),
                                 ),
                                 alignment: Alignment.center,
                                 child: isChecked
                                     ? Icon(LucideIcons.check,
-                                        size: 12, color: st.text)
+                                        size: 12, color: theme.accentSoft)
                                     : null,
                               ),
                               const SizedBox(width: 8),
@@ -1310,7 +1340,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                                         fontSize: 12,
                                         fontWeight: FontWeight.w500,
                                         color: isChecked
-                                            ? st.text
+                                            ? Colors.white
                                             : const Color(0xFF94A3B8),
                                       ),
                                     ),
@@ -1408,19 +1438,17 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
 
                       return InkWell(
                         onTap: () => _toggleStatus(opt.id),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 8),
                           decoration: BoxDecoration(
                             color: isChecked
-                                ? st.surface
+                                ? Colors.white.withValues(alpha: 0.06)
                                 : const Color(0x05FFFFFF),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: isChecked
-                                  ? st.border
-                                  : const Color(0x14FFFFFF),
+                              color: Colors.white.withValues(alpha: 0.08),
                             ),
                           ),
                           child: Row(
@@ -1430,19 +1458,19 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                                 height: 16,
                                 decoration: BoxDecoration(
                                   color: isChecked
-                                      ? st.accent.withAlpha(80)
+                                      ? theme.accent.withValues(alpha: 0.25)
                                       : Colors.black26,
                                   borderRadius: BorderRadius.circular(4),
                                   border: Border.all(
                                     color: isChecked
-                                        ? st.accent
+                                        ? theme.accent.withValues(alpha: 0.65)
                                         : Colors.white24,
                                   ),
                                 ),
                                 alignment: Alignment.center,
                                 child: isChecked
                                     ? Icon(LucideIcons.check,
-                                        size: 12, color: st.text)
+                                        size: 12, color: theme.accentSoft)
                                     : null,
                               ),
                               const SizedBox(width: 8),
@@ -1457,7 +1485,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                                         ? FontWeight.w600
                                         : FontWeight.normal,
                                     color: isChecked
-                                        ? st.text
+                                        ? Colors.white
                                         : const Color(0xFF94A3B8),
                                   ),
                                 ),
@@ -1546,6 +1574,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                     Expanded(
                       child: TsundokuTextField(
                         controller: _mangalibProfileController,
+                        height: 38,
                         placeholder: mangalibAuth.userId.isNotEmpty
                             ? mangalibAuth.userId
                             : '123456 · https://mangalib.org/ru/users/123456',
@@ -1992,26 +2021,43 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  if (_listMode == 'new')
+                  if (_listMode == 'new') ...[
+                    Text(
+                      'Название нового списка',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: theme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
                     TsundokuTextField(
                       controller: _newListNameController,
-                      labelText: 'Название нового списка',
+                      height: 38,
                       placeholder: t.tf('importModal.defaultList', [_provider.label]),
-                    )
-                  else
+                    ),
+                  ] else ...[
+                    Text(
+                      t.tr('importModal.selectList'),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: theme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
                       initialValue: _targetListId,
                       dropdownColor: const Color(0xFF1E2230),
                       style: const TextStyle(
                           fontSize: 13, color: Colors.white),
                       decoration: InputDecoration(
-                        labelText: t.tr('importModal.selectList'),
-                        labelStyle: const TextStyle(
-                            color: Color(0xFF94A3B8), fontSize: 13),
+                        constraints: const BoxConstraints(
+                            minHeight: 38, maxHeight: 38),
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
+                            horizontal: 12, vertical: 8),
                         filled: true,
-                        fillColor: const Color(0x0AFFFFFF),
+                        fillColor: const Color(0xFF0F1219),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide:
@@ -2024,7 +2070,8 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: st.accent),
+                          borderSide: BorderSide(
+                              color: theme.accent.withAlpha(153)),
                         ),
                       ),
                       items: _lists.map((l) {
@@ -2036,6 +2083,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                       onChanged: (val) =>
                           setState(() => _targetListId = val),
                     ),
+                  ],
                 ],
               ),
             ),
@@ -2107,19 +2155,17 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
 
                     return InkWell(
                       onTap: () => _toggleStatus(opt.id),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 8),
                         decoration: BoxDecoration(
                           color: isChecked
-                              ? st.surface
+                              ? Colors.white.withValues(alpha: 0.06)
                               : const Color(0x05FFFFFF),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: isChecked
-                                ? st.border
-                                : const Color(0x14FFFFFF),
+                            color: Colors.white.withValues(alpha: 0.08),
                           ),
                         ),
                         child: Row(
@@ -2129,20 +2175,20 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                               height: 16,
                               decoration: BoxDecoration(
                                 color: isChecked
-                                    ? st.accent.withAlpha(80)
+                                    ? theme.accent.withValues(alpha: 0.25)
                                     : Colors.black26,
                                 borderRadius:
                                     BorderRadius.circular(4),
                                 border: Border.all(
                                   color: isChecked
-                                      ? st.accent
+                                      ? theme.accent.withValues(alpha: 0.65)
                                       : Colors.white24,
                                 ),
                               ),
                               alignment: Alignment.center,
                               child: isChecked
                                   ? Icon(LucideIcons.check,
-                                      size: 12, color: st.text)
+                                      size: 12, color: theme.accentSoft)
                                   : null,
                             ),
                             const SizedBox(width: 8),
@@ -2157,7 +2203,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                                       ? FontWeight.w600
                                       : FontWeight.normal,
                                   color: isChecked
-                                      ? st.text
+                                      ? Colors.white
                                       : const Color(0xFF94A3B8),
                                 ),
                               ),
@@ -2177,17 +2223,21 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
   }
 
   Widget _buildSubmitButton(I18nDictionary t, TsundokuTheme theme) {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: TsundokuButton(
-        variant: ButtonVariant.primary,
-        size: ButtonSize.lg,
-        loading: _busy,
-        onPressed: _busy ? null : _runImport,
-        child: Text(_busy
-            ? t.tr('importModal.importing')
-            : t.tr('importModal.start')),
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        IntrinsicWidth(
+          child: TsundokuButton(
+            variant: ButtonVariant.primary,
+            size: ButtonSize.md,
+            loading: _busy,
+            onPressed: _busy ? null : _runImport,
+            child: Text(_busy
+                ? t.tr('importModal.importing')
+                : t.tr('importModal.start')),
+          ),
+        ),
+      ],
     );
   }
 

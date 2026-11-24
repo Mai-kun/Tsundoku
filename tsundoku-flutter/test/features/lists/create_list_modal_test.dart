@@ -41,7 +41,15 @@ class _CapturingAdapter implements HttpClientAdapter {
     }
     if (path.contains('/api/media')) {
       return ResponseBody.fromString(
-        jsonEncode([]),
+        jsonEncode([
+          {
+            'id': 'm1',
+            'title': 'Test Game',
+            'type': 'game',
+            'status': 0,
+            'createdAt': '2024-01-01T00:00:00Z',
+          },
+        ]),
         200,
         headers: {Headers.contentTypeHeader: ['application/json']},
       );
@@ -256,5 +264,32 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('⚡ 1'), findsOneWidget);
+  });
+
+  testWidgets('switches to smart list with real SmartListBuilder without setState-during-build error',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_buildSubject(isOpen: true));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    await tester.tap(find.text('Умный список'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('⚡ 1'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Аниме'));
+    await tester.pump();
+    await tester.tap(find.text('Аниме'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('⚡ 0'), findsOneWidget);
   });
 }

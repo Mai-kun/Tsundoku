@@ -18,6 +18,7 @@ import '../../../shared/theme/tsundoku_tokens.dart';
 import '../../../shared/types/dtos.dart';
 import '../../../shared/ui/badge.dart';
 import '../../../shared/ui/popover_menu.dart';
+import '../../../shared/ui/text_field.dart';
 import '../../../shared/ui/toast.dart';
 
 class SearchTab extends ConsumerStatefulWidget {
@@ -581,19 +582,23 @@ class _SearchTabState extends ConsumerState<SearchTab> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: TextField(
-                          controller: _promotedLabelController,
-                          style: const TextStyle(fontSize: 12, color: Colors.white),
-                          decoration: InputDecoration(
-                            labelText: t.tr('settingsModal.search.navCategories.titleLabel'),
-                            hintText: t.tr('settingsModal.search.navCategories.titleLabelPlaceholder'),
-                            isDense: true,
-                            filled: true,
-                            fillColor: const Color(0x0FFFFFFF),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              t.tr('settingsModal.search.navCategories.titleLabel'),
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: theme.textMuted),
+                            ),
+                            const SizedBox(height: 6),
+                            TsundokuTextField(
+                              controller: _promotedLabelController,
+                              height: 38,
+                              placeholder: t.tr('settingsModal.search.navCategories.titleLabelPlaceholder'),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -605,11 +610,11 @@ class _SearchTabState extends ConsumerState<SearchTab> {
                               t.tr('settingsModal.search.navCategories.iconLabel'),
                               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: theme.textMuted),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 6),
                             TsundokuSelect<String>(
                               id: 'promoted-icon',
                               width: double.infinity,
-                              height: 36,
+                              height: 38,
                               value: _newPromotedIcon,
                               options: promotedIcons.keys.map((k) => PopoverOption(value: k, label: k)).toList(),
                               onChange: (val) => setState(() => _newPromotedIcon = val),
@@ -676,17 +681,15 @@ class _SearchTabState extends ConsumerState<SearchTab> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  Text(
+                    t.tr('settingsModal.search.navCategories.valueLabel'),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: theme.textMuted),
+                  ),
+                  const SizedBox(height: 6),
+                  TsundokuTextField(
                     controller: _promotedValueController,
-                    style: const TextStyle(fontSize: 12, color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: t.tr('settingsModal.search.navCategories.valueLabel'),
-                      hintText: t.tr('settingsModal.search.navCategories.valuePlaceholder'),
-                      isDense: true,
-                      filled: true,
-                      fillColor: const Color(0x0FFFFFFF),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
+                    height: 38,
+                    placeholder: t.tr('settingsModal.search.navCategories.valuePlaceholder'),
                   ),
                   const SizedBox(height: 12),
                   Row(

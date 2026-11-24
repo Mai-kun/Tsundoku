@@ -138,6 +138,7 @@ class _ReadingTabState extends ConsumerState<ReadingTab> {
             const SizedBox(height: 6),
             TsundokuTextField(
               controller: _bookPageController,
+              height: 38,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),
             const SizedBox(height: 4),
@@ -159,6 +160,7 @@ class _ReadingTabState extends ConsumerState<ReadingTab> {
             const SizedBox(height: 6),
             TsundokuTextField(
               controller: _mangaChapterController,
+              height: 38,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),
             const SizedBox(height: 4),

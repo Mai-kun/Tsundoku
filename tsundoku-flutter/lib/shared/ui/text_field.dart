@@ -15,7 +15,6 @@ class TsundokuTextField extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final String? placeholder;
-  final String? labelText;
   final Widget? prefixIcon;
   final Widget? suffix;
   final bool obscureText;
@@ -34,6 +33,8 @@ class TsundokuTextField extends StatefulWidget {
   final TextAlign textAlign;
   final bool readOnly;
   final int? maxLength;
+  final EdgeInsetsGeometry? contentPadding;
+  final bool isDense;
 
   const TsundokuTextField({
     super.key,
@@ -42,7 +43,6 @@ class TsundokuTextField extends StatefulWidget {
     this.onChanged,
     this.onSubmitted,
     this.placeholder,
-    this.labelText,
     this.prefixIcon,
     this.suffix,
     this.obscureText = false,
@@ -61,6 +61,8 @@ class TsundokuTextField extends StatefulWidget {
     this.textAlign = TextAlign.start,
     this.readOnly = false,
     this.maxLength,
+    this.contentPadding,
+    this.isDense = true,
   });
 
   @override
@@ -93,6 +95,9 @@ class _TsundokuTextFieldState extends State<TsundokuTextField> {
   Widget build(BuildContext context) {
     final th = TsundokuTheme.of(context);
     final effectiveHeight = widget.multiline ? null : (widget.height ?? 36.0);
+    final verticalPadding = effectiveHeight == null || effectiveHeight == 36.0
+        ? 8.0
+        : ((effectiveHeight - 20.0) / 2).clamp(4.0, 24.0);
 
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(8),
@@ -147,22 +152,39 @@ class _TsundokuTextFieldState extends State<TsundokuTextField> {
       onChanged: widget.onChanged,
       onSubmitted: widget.onSubmitted,
       style: textStyle,
+      textAlignVertical:
+          widget.multiline ? TextAlignVertical.top : TextAlignVertical.center,
       cursorColor: th.accent,
       decoration: InputDecoration(
-        isDense: true,
+        isDense: widget.isDense,
         filled: true,
         counterText: '',
+        constraints: effectiveHeight != null
+            ? BoxConstraints(
+                minHeight: effectiveHeight,
+                maxHeight: effectiveHeight,
+              )
+            : null,
         fillColor: const Color(0xFF0F1219), // #0f1219 / bg-field
         hintText: widget.placeholder,
         hintStyle: hintStyle,
-        labelText: widget.labelText,
-        labelStyle: hintStyle,
-        floatingLabelBehavior: FloatingLabelBehavior.always,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        contentPadding: widget.contentPadding ??
+            EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: verticalPadding,
+            ),
         prefixIcon: widget.prefixIcon,
-        prefixIconConstraints: const BoxConstraints(minWidth: 32, maxHeight: 36),
+        prefixIconConstraints: BoxConstraints(
+          minWidth: 32,
+          minHeight: effectiveHeight ?? 0,
+          maxHeight: effectiveHeight ?? 36,
+        ),
         suffixIcon: widget.suffix,
-        suffixIconConstraints: const BoxConstraints(minWidth: 32, maxHeight: 36),
+        suffixIconConstraints: BoxConstraints(
+          minWidth: 32,
+          minHeight: effectiveHeight ?? 0,
+          maxHeight: effectiveHeight ?? 36,
+        ),
         border: border,
         enabledBorder: border,
         focusedBorder: focusedBorder,

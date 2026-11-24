@@ -10,6 +10,8 @@ import 'package:tsundoku_flutter/shared/i18n/index.dart';
 import 'package:tsundoku_flutter/shared/types/dtos.dart';
 import 'package:tsundoku_flutter/shared/types/enums.dart';
 import 'package:tsundoku_flutter/shared/types/models.dart';
+import 'package:tsundoku_flutter/shared/ui/segmented_control.dart';
+import 'package:tsundoku_flutter/shared/ui/text_field.dart';
 
 class SmartListBuilder extends ConsumerStatefulWidget {
   final SmartListQuery query;
@@ -66,7 +68,7 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
         TextEditingController(text: widget.query.limit?.toString() ?? '');
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _evaluateAndReport();
+      if (mounted) _evaluateAndReport();
     });
   }
 
@@ -74,7 +76,9 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
   void didUpdateWidget(covariant SmartListBuilder oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.query != oldWidget.query || widget.allMedia != oldWidget.allMedia) {
-      _evaluateAndReport();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _evaluateAndReport();
+      });
     }
   }
 
@@ -143,6 +147,7 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
         // 1. Presets
         _buildSection(
           title: t.tr('views.smartPresets'),
+          showDivider: false,
           child: Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -269,18 +274,20 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
                       isExpanded: true,
                       initialValue: widget.query.releaseStatus ?? '',
                       dropdownColor: const Color(0xFF1E2230),
-                      style: const TextStyle(fontSize: 14, color: Colors.white),
+                      style: const TextStyle(fontSize: 13, color: Colors.white),
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: const Color(0x0AFFFFFF),
+                        fillColor: const Color(0xFF0F1219),
+                        constraints:
+                            const BoxConstraints(minHeight: 38, maxHeight: 38),
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
+                          horizontal: 12,
+                          vertical: 8,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -337,35 +344,18 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    TextField(
+                    const SizedBox(height: 6),
+                    TsundokuTextField(
                       controller: _minScoreController,
+                      height: 38,
                       keyboardType: TextInputType.number,
-                      style: const TextStyle(fontSize: 14, color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: '1–10',
-                        prefixIcon: const Icon(
+                      placeholder: '1–10',
+                      prefixIcon: const Padding(
+                        padding: EdgeInsets.only(left: 10, right: 6),
+                        child: Icon(
                           LucideIcons.star,
                           size: 14,
                           color: Color(0xFF94A3B8),
-                        ),
-                        prefixIconConstraints: const BoxConstraints(
-                          minWidth: 28,
-                          maxHeight: 32,
-                        ),
-                        filled: true,
-                        fillColor: const Color(0x0AFFFFFF),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
                         ),
                       ),
                       onChanged: (val) {
@@ -394,35 +384,18 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    TextField(
+                    const SizedBox(height: 6),
+                    TsundokuTextField(
                       controller: _minRatingController,
+                      height: 38,
                       keyboardType: TextInputType.number,
-                      style: const TextStyle(fontSize: 14, color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: '0–10',
-                        prefixIcon: const Icon(
+                      placeholder: '0–10',
+                      prefixIcon: const Padding(
+                        padding: EdgeInsets.only(left: 10, right: 6),
+                        child: Icon(
                           LucideIcons.star,
                           size: 14,
                           color: Color(0xFF94A3B8),
-                        ),
-                        prefixIconConstraints: const BoxConstraints(
-                          minWidth: 28,
-                          maxHeight: 32,
-                        ),
-                        filled: true,
-                        fillColor: const Color(0x0AFFFFFF),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
                         ),
                       ),
                       onChanged: (val) {
@@ -571,28 +544,12 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                             color: Colors.white,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        TextField(
+                        const SizedBox(height: 6),
+                        TsundokuTextField(
                           controller: _yearFromController,
+                          height: 38,
                           keyboardType: TextInputType.number,
-                          style: const TextStyle(fontSize: 14, color: Colors.white),
-                          decoration: InputDecoration(
-                            hintText: '2000',
-                            filled: true,
-                            fillColor: const Color(0x0AFFFFFF),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                            ),
-                          ),
+                          placeholder: '2000',
                           onChanged: (val) {
                             widget.onQueryChange(widget.query.copyWith(
                               releaseYearFrom: int.tryParse(val.trim()),
@@ -619,28 +576,12 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                             color: Colors.white,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        TextField(
+                        const SizedBox(height: 6),
+                        TsundokuTextField(
                           controller: _yearToController,
+                          height: 38,
                           keyboardType: TextInputType.number,
-                          style: const TextStyle(fontSize: 14, color: Colors.white),
-                          decoration: InputDecoration(
-                            hintText: '2024',
-                            filled: true,
-                            fillColor: const Color(0x0AFFFFFF),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                            ),
-                          ),
+                          placeholder: '2024',
                           onChanged: (val) {
                             widget.onQueryChange(widget.query.copyWith(
                               releaseYearTo: int.tryParse(val.trim()),
@@ -664,34 +605,17 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  TextField(
+                  const SizedBox(height: 6),
+                  TsundokuTextField(
                     controller: _creatorController,
-                    style: const TextStyle(fontSize: 14, color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: t.tr('views.smartCreatorPlaceholder'),
-                      prefixIcon: const Icon(
+                    height: 38,
+                    placeholder: t.tr('views.smartCreatorPlaceholder'),
+                    prefixIcon: const Padding(
+                      padding: EdgeInsets.only(left: 10, right: 6),
+                      child: Icon(
                         LucideIcons.search,
                         size: 14,
                         color: Color(0xFF94A3B8),
-                      ),
-                      prefixIconConstraints: const BoxConstraints(
-                        minWidth: 32,
-                        maxHeight: 32,
-                      ),
-                      filled: true,
-                      fillColor: const Color(0x0AFFFFFF),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
                       ),
                     ),
                     onChanged: (val) {
@@ -725,18 +649,20 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
                       isExpanded: true,
                       initialValue: widget.query.sortBy ?? 'createdAt',
                       dropdownColor: const Color(0xFF1E2230),
-                      style: const TextStyle(fontSize: 14, color: Colors.white),
+                      style: const TextStyle(fontSize: 13, color: Colors.white),
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: const Color(0x0AFFFFFF),
+                        fillColor: const Color(0xFF0F1219),
+                        constraints:
+                            const BoxConstraints(minHeight: 38, maxHeight: 38),
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
+                          horizontal: 12,
+                          vertical: 8,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -781,18 +707,20 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
                       isExpanded: true,
                       initialValue: widget.query.sortOrder ?? 'desc',
                       dropdownColor: const Color(0xFF1E2230),
-                      style: const TextStyle(fontSize: 14, color: Colors.white),
+                      style: const TextStyle(fontSize: 13, color: Colors.white),
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: const Color(0x0AFFFFFF),
+                        fillColor: const Color(0xFF0F1219),
+                        constraints:
+                            const BoxConstraints(minHeight: 38, maxHeight: 38),
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
+                          horizontal: 12,
+                          vertical: 8,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -835,28 +763,12 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    TextField(
+                    const SizedBox(height: 6),
+                    TsundokuTextField(
                       controller: _limitController,
+                      height: 38,
                       keyboardType: TextInputType.number,
-                      style: const TextStyle(fontSize: 14, color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: '50',
-                        filled: true,
-                        fillColor: const Color(0x0AFFFFFF),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                        ),
-                      ),
+                      placeholder: '50',
                       onChanged: (val) {
                         widget.onQueryChange(widget.query.copyWith(
                           limit: int.tryParse(val.trim()),
@@ -873,30 +785,22 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
     );
   }
 
-  Widget _buildSection({required String title, required Widget child}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x0DFFFFFF)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.2,
-              color: Color(0xFF94A3B8),
-            ),
-          ),
-          const SizedBox(height: 12),
-          child,
+  Widget _buildSection({
+    required String title,
+    required Widget child,
+    bool showDivider = true,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showDivider) ...[
+          const Divider(color: Colors.white10, height: 1),
+          const SizedBox(height: 16),
         ],
-      ),
+        TsundokuSectionHeader(title),
+        const SizedBox(height: 12),
+        child,
+      ],
     );
   }
 
@@ -984,28 +888,20 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
             color: Colors.white,
           ),
         ),
-        const SizedBox(height: 4),
-        TextField(
+        const SizedBox(height: 6),
+        TsundokuTextField(
           controller: controller,
+          height: 38,
           keyboardType: TextInputType.number,
-          style: const TextStyle(fontSize: 14, color: Colors.white),
-          decoration: InputDecoration(
-            hintText: hint,
-            suffixText: unit,
-            suffixStyle: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-            filled: true,
-            fillColor: const Color(0x0AFFFFFF),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 6,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+          placeholder: hint,
+          suffix: Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: Center(
+              widthFactor: 1.0,
+              child: Text(
+                unit,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+              ),
             ),
           ),
           onChanged: onChanged,

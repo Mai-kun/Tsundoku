@@ -15,6 +15,7 @@ import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/types/dtos.dart';
 import '../../shared/ui/modal.dart';
 import '../../shared/ui/popover_menu.dart';
+import '../../shared/ui/text_field.dart';
 
 class CreateGoalModal extends ConsumerStatefulWidget {
   final bool isOpen;
@@ -376,34 +377,12 @@ class _CreateGoalModalState extends ConsumerState<CreateGoalModal> {
                       color: tokens.textMuted,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  TextField(
+                  const SizedBox(height: 6),
+                  TsundokuTextField(
                     controller: _titleController,
+                    height: 38,
                     maxLength: 120,
-                    style: TextStyle(fontSize: 14, color: tokens.textPrimary),
-                    decoration: InputDecoration(
-                      hintText: '🎯',
-                      hintStyle: TextStyle(color: tokens.textMuted),
-                      filled: true,
-                      fillColor: tokens.bgSurface,
-                      counterText: '',
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide:
-                            BorderSide(color: Colors.white.withAlpha(26)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide:
-                            BorderSide(color: Colors.white.withAlpha(26)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF818CF8)),
-                      ),
-                    ),
+                    placeholder: '🎯',
                   ),
                   const SizedBox(height: 12),
 
@@ -422,33 +401,11 @@ class _CreateGoalModalState extends ConsumerState<CreateGoalModal> {
                                 color: tokens.textMuted,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            TextField(
+                            const SizedBox(height: 6),
+                            TsundokuTextField(
                               controller: _yearController,
+                              height: 38,
                               keyboardType: TextInputType.number,
-                              style: TextStyle(
-                                  fontSize: 14, color: tokens.textPrimary),
-                              decoration: InputDecoration(
-                                filled: true,
-                                fillColor: tokens.bgSurface,
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                      color: Colors.white.withAlpha(26)),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                      color: Colors.white.withAlpha(26)),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF818CF8)),
-                                ),
-                              ),
                             ),
                           ],
                         ),
@@ -466,33 +423,11 @@ class _CreateGoalModalState extends ConsumerState<CreateGoalModal> {
                                 color: tokens.textMuted,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            TextField(
+                            const SizedBox(height: 6),
+                            TsundokuTextField(
                               controller: _targetController,
+                              height: 38,
                               keyboardType: TextInputType.number,
-                              style: TextStyle(
-                                  fontSize: 14, color: tokens.textPrimary),
-                              decoration: InputDecoration(
-                                filled: true,
-                                fillColor: tokens.bgSurface,
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                      color: Colors.white.withAlpha(26)),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                      color: Colors.white.withAlpha(26)),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF818CF8)),
-                                ),
-                              ),
                             ),
                           ],
                         ),
@@ -516,9 +451,10 @@ class _CreateGoalModalState extends ConsumerState<CreateGoalModal> {
                                 color: tokens.textMuted,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 6),
                             TsundokuSelect<String>(
                               id: 'goal-category',
+                              height: 38,
                               options: categoryOptions,
                               value: _category,
                               onChange: (next) =>
@@ -540,34 +476,11 @@ class _CreateGoalModalState extends ConsumerState<CreateGoalModal> {
                                 color: tokens.textMuted,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            TextField(
+                            const SizedBox(height: 6),
+                            TsundokuTextField(
                               controller: _iconController,
+                              height: 38,
                               maxLength: 8,
-                              style: TextStyle(
-                                  fontSize: 14, color: tokens.textPrimary),
-                              decoration: InputDecoration(
-                                filled: true,
-                                fillColor: tokens.bgSurface,
-                                counterText: '',
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                      color: Colors.white.withAlpha(26)),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                      color: Colors.white.withAlpha(26)),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF818CF8)),
-                                ),
-                              ),
                             ),
                           ],
                         ),
@@ -585,32 +498,11 @@ class _CreateGoalModalState extends ConsumerState<CreateGoalModal> {
                       color: tokens.textMuted,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  TextField(
+                  const SizedBox(height: 6),
+                  TsundokuTextField(
                     controller: _descriptionController,
+                    height: 38,
                     maxLength: 300,
-                    style: TextStyle(fontSize: 14, color: tokens.textPrimary),
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: tokens.bgSurface,
-                      counterText: '',
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide:
-                            BorderSide(color: Colors.white.withAlpha(26)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide:
-                            BorderSide(color: Colors.white.withAlpha(26)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF818CF8)),
-                      ),
-                    ),
                   ),
                 ],
               ),

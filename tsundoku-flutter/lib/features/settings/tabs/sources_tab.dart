@@ -738,15 +738,16 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
                 ],
               );
 
+              final isOfflineBusy = _offlineReindexing || _offlineLoading;
               final reindexButton = OutlinedButton.icon(
-                onPressed: _offlineReindexing ? null : () => _handleReindexOffline(t),
+                onPressed: isOfflineBusy ? null : () => _handleReindexOffline(t),
                 style: OutlinedButton.styleFrom(
                   backgroundColor: const Color(0x266366F1),
                   side: const BorderSide(color: Color(0x4D6366F1)),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 ),
-                icon: _offlineReindexing
+                icon: isOfflineBusy
                     ? const SizedBox(
                         width: 14,
                         height: 14,
@@ -866,15 +867,8 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
           ],
 
           // Databases Grid
-          const SizedBox(height: 16),
-          if (_offlineLoading)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: CircularProgressIndicator(),
-              ),
-            )
-          else if (databases.isNotEmpty)
+          if (databases.isNotEmpty) ...[
+            const SizedBox(height: 16),
             LayoutBuilder(
               builder: (context, constraints) {
                 final isWide = constraints.maxWidth >= 700;
@@ -895,6 +889,7 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
                 );
               },
             ),
+          ],
 
           // Bottom Directory Hint
           const SizedBox(height: 16),
@@ -1040,17 +1035,9 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x400284C7)),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0x66082F49),
-            Color(0xB3151A26),
-            Color(0xE610141D),
-          ],
-        ),
+        color: theme.bgSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1062,12 +1049,12 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0x330284C7),
+                  color: Colors.white.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0x4D0284C7)),
+                  border: Border.all(color: theme.borderSubtle),
                 ),
                 alignment: Alignment.center,
-                child: const Icon(LucideIcons.globe, size: 20, color: Color(0xFF38BDF8)),
+                child: Icon(LucideIcons.globe, size: 20, color: theme.accentSoft),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1098,7 +1085,7 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
               const SizedBox(width: 12),
               _buildSwitch(
                 value: _proxyEnabled,
-                activeColor: const Color(0xFF0284C7),
+                activeColor: theme.accent,
                 onChanged: (val) => setState(() => _proxyEnabled = val),
               ),
             ],
@@ -1110,28 +1097,54 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
             )
           else ...[
             const SizedBox(height: 16),
+            Text(
+              t.tr('settingsModal.sources.proxy.urlLabel'),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: theme.textSecondary),
+            ),
+            const SizedBox(height: 6),
             TsundokuTextField(
               controller: _proxyUrlController,
-              labelText: t.tr('settingsModal.sources.proxy.urlLabel'),
+              height: 38,
               placeholder: t.tr('settingsModal.sources.proxy.urlPlaceholder'),
             ),
             const SizedBox(height: 12),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: TsundokuTextField(
-                    controller: _proxyUsernameController,
-                    labelText: t.tr('settingsModal.sources.proxy.usernameLabel'),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        t.tr('settingsModal.sources.proxy.usernameLabel'),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: theme.textSecondary),
+                      ),
+                      const SizedBox(height: 6),
+                      TsundokuTextField(
+                        controller: _proxyUsernameController,
+                        height: 38,
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: TsundokuTextField(
-                    controller: _proxyPasswordController,
-                    obscureText: true,
-                    onChanged: (_) => _proxyPasswordDirty = true,
-                    labelText: t.tr('settingsModal.sources.proxy.passwordLabel'),
-                    placeholder: t.tr('settingsModal.sources.proxy.passwordPlaceholder'),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        t.tr('settingsModal.sources.proxy.passwordLabel'),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: theme.textSecondary),
+                      ),
+                      const SizedBox(height: 6),
+                      TsundokuTextField(
+                        controller: _proxyPasswordController,
+                        height: 38,
+                        obscureText: true,
+                        onChanged: (_) => _proxyPasswordDirty = true,
+                        placeholder: t.tr('settingsModal.sources.proxy.passwordPlaceholder'),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -1701,6 +1714,7 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
             Expanded(
               child: TsundokuTextField(
                 controller: controller,
+                height: 38,
                 obscureText: !showKey,
                 placeholder: customPlaceholder ??
                     (source.hasKey

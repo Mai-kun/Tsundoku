@@ -21,6 +21,8 @@ import '../../../shared/types/models.dart';
 import '../../../shared/ui/badge.dart';
 import '../../../shared/ui/confirm_dialog.dart';
 import '../../../shared/ui/popover_menu.dart';
+import '../../../shared/ui/segmented_control.dart';
+import '../../../shared/ui/text_field.dart';
 import '../../../shared/ui/toast.dart';
 
 class SourcesTab extends ConsumerStatefulWidget {
@@ -1106,49 +1108,28 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
             )
           else ...[
             const SizedBox(height: 16),
-            TextField(
+            TsundokuTextField(
               controller: _proxyUrlController,
-              style: const TextStyle(fontSize: 12, color: Colors.white),
-              decoration: InputDecoration(
-                labelText: t.tr('settingsModal.sources.proxy.urlLabel'),
-                hintText: t.tr('settingsModal.sources.proxy.urlPlaceholder'),
-                isDense: true,
-                filled: true,
-                fillColor: const Color(0x0FFFFFFF),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              ),
+              labelText: t.tr('settingsModal.sources.proxy.urlLabel'),
+              placeholder: t.tr('settingsModal.sources.proxy.urlPlaceholder'),
             ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: TextField(
+                  child: TsundokuTextField(
                     controller: _proxyUsernameController,
-                    style: const TextStyle(fontSize: 12, color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: t.tr('settingsModal.sources.proxy.usernameLabel'),
-                      isDense: true,
-                      filled: true,
-                      fillColor: const Color(0x0FFFFFFF),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
+                    labelText: t.tr('settingsModal.sources.proxy.usernameLabel'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: TextField(
+                  child: TsundokuTextField(
                     controller: _proxyPasswordController,
                     obscureText: true,
                     onChanged: (_) => _proxyPasswordDirty = true,
-                    style: const TextStyle(fontSize: 12, color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: t.tr('settingsModal.sources.proxy.passwordLabel'),
-                      hintText: t.tr('settingsModal.sources.proxy.passwordPlaceholder'),
-                      isDense: true,
-                      filled: true,
-                      fillColor: const Color(0x0FFFFFFF),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
+                    labelText: t.tr('settingsModal.sources.proxy.passwordLabel'),
+                    placeholder: t.tr('settingsModal.sources.proxy.passwordPlaceholder'),
                   ),
                 ),
               ],
@@ -1248,30 +1229,21 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             // Pill Switcher: API vs Scrapers
-            Container(
-              padding: const EdgeInsets.all(3),
-              decoration: BoxDecoration(
-                color: const Color(0x0FFFFFFF),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0x1AFFFFFF)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildPillButton(
-                    label: t.tr('settingsModal.sources.kindApi'),
-                    icon: LucideIcons.zap,
-                    selected: _sourceKindFilter == 'api',
-                    onTap: () => setState(() => _sourceKindFilter = 'api'),
-                  ),
-                  _buildPillButton(
-                    label: t.tr('settingsModal.sources.kindScrapers'),
-                    icon: LucideIcons.globe,
-                    selected: _sourceKindFilter == 'scraper',
-                    onTap: () => setState(() => _sourceKindFilter = 'scraper'),
-                  ),
-                ],
-              ),
+            TsundokuSegmentedControl<String>(
+              value: _sourceKindFilter,
+              options: [
+                SegmentedOption(
+                  value: 'api',
+                  label: t.tr('settingsModal.sources.kindApi'),
+                  icon: LucideIcons.zap,
+                ),
+                SegmentedOption(
+                  value: 'scraper',
+                  label: t.tr('settingsModal.sources.kindScrapers'),
+                  icon: LucideIcons.globe,
+                ),
+              ],
+              onChanged: (val) => setState(() => _sourceKindFilter = val),
             ),
             // Media Type Filter
             Row(
@@ -1305,39 +1277,6 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
           ],
         ),
       ],
-    );
-  }
-
-  Widget _buildPillButton({
-    required String label,
-    required IconData icon,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0x336366F1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 13, color: selected ? const Color(0xFFA5B4FC) : const Color(0xFF94A3B8)),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                color: selected ? const Color(0xFFA5B4FC) : const Color(0xFF94A3B8),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -1758,27 +1697,16 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
         Row(
           children: [
             Expanded(
-              child: SizedBox(
-                height: 36,
-                child: TextField(
-                  controller: controller,
-                  obscureText: !showKey,
-                  style: const TextStyle(fontSize: 12, color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: customPlaceholder ??
-                        (source.hasKey
-                            ? t.tr('settingsModal.sources.replaceKeyPlaceholder')
-                            : t.tr('settingsModal.sources.inputPlaceholder')),
-                    hintStyle: TextStyle(fontSize: 12, color: theme.textMuted),
-                    isDense: true,
-                    filled: true,
-                    fillColor: const Color(0x0FFFFFFF),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    suffixIcon: IconButton(
-                      icon: Icon(showKey ? LucideIcons.eyeOff : LucideIcons.eye, size: 14),
-                      onPressed: () => setState(() => _showKeys[source.id] = !showKey),
-                    ),
-                  ),
+              child: TsundokuTextField(
+                controller: controller,
+                obscureText: !showKey,
+                placeholder: customPlaceholder ??
+                    (source.hasKey
+                        ? t.tr('settingsModal.sources.replaceKeyPlaceholder')
+                        : t.tr('settingsModal.sources.inputPlaceholder')),
+                suffix: IconButton(
+                  icon: Icon(showKey ? LucideIcons.eyeOff : LucideIcons.eye, size: 14),
+                  onPressed: () => setState(() => _showKeys[source.id] = !showKey),
                 ),
               ),
             ),

@@ -19,6 +19,7 @@ import '../../../shared/i18n/index.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
 import '../../../shared/types/models.dart';
 import '../../../shared/ui/confirm_dialog.dart';
+import '../../../shared/ui/text_field.dart';
 import '../../../shared/ui/toast.dart';
 
 class StorageTab extends ConsumerStatefulWidget {
@@ -323,28 +324,9 @@ class _StorageTabState extends ConsumerState<StorageTab> {
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.textSecondary),
                       ),
                       const SizedBox(height: 6),
-                      TextField(
+                      TsundokuTextField(
                         controller: _customPathController,
-                        style: TextStyle(fontSize: 13, color: theme.textPrimary),
-                        decoration: InputDecoration(
-                          hintText: t.tr('settingsModal.storage.customPathPlaceholder'),
-                          hintStyle: TextStyle(color: theme.textMuted),
-                          filled: true,
-                          fillColor: theme.bgCanvas,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: theme.borderSubtle),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: theme.borderSubtle),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: theme.accent),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        ),
+                        placeholder: t.tr('settingsModal.storage.customPathPlaceholder'),
                       ),
                     ],
 

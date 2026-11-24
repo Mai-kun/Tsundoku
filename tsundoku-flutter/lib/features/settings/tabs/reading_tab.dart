@@ -11,6 +11,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../shared/i18n/index.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
+import '../../../shared/ui/text_field.dart';
 import '../../../shared/ui/toast.dart';
 import '../../../shared/utils/ui_settings.dart';
 
@@ -135,27 +136,9 @@ class _ReadingTabState extends ConsumerState<ReadingTab> {
               ),
             ),
             const SizedBox(height: 6),
-            TextField(
+            TsundokuTextField(
               controller: _bookPageController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: TextStyle(fontSize: 14, color: theme.textPrimary),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: theme.bgSurface,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: theme.borderSubtle),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: theme.borderSubtle),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: theme.accent),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -174,27 +157,9 @@ class _ReadingTabState extends ConsumerState<ReadingTab> {
               ),
             ),
             const SizedBox(height: 6),
-            TextField(
+            TsundokuTextField(
               controller: _mangaChapterController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: TextStyle(fontSize: 14, color: theme.textPrimary),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: theme.bgSurface,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: theme.borderSubtle),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: theme.borderSubtle),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: theme.accent),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              ),
             ),
             const SizedBox(height: 4),
             Text(

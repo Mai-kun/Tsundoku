@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:tsundoku_flutter/shared/theme/tsundoku_tokens.dart';
+import 'package:tsundoku_flutter/shared/ui/text_field.dart';
 
 /// Лейбл над полем формы (upper-level обёртка `<label>` Svelte).
 class TsundokuFormField extends StatelessWidget {
@@ -139,15 +140,13 @@ class _CreateTextFieldState extends State<CreateTextField> {
 
   @override
   Widget build(BuildContext context) {
-    final th = TsundokuTheme.of(context);
-    return TextField(
+    return TsundokuTextField(
       controller: _controller,
       onChanged: widget.onChange,
       keyboardType:
           widget.keyboardType ?? (widget.number ? TextInputType.number : null),
       inputFormatters: widget.number ? [createNumberFormatter()] : null,
-      style: createFieldTextStyle(th),
-      decoration: createFieldDecoration(th, hint: widget.hint),
+      placeholder: widget.hint,
     );
   }
 }

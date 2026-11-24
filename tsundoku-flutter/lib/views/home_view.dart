@@ -29,6 +29,7 @@ import '../shared/theme/tsundoku_tokens.dart';
 import '../shared/types/enums.dart';
 import '../shared/types/models.dart';
 import '../shared/ui/popover_menu.dart';
+import '../shared/ui/text_field.dart';
 import '../shared/ui/toast.dart';
 import '../shared/ui/total_badge.dart';
 import '../shared/utils/swr_cache.dart';
@@ -1666,47 +1667,16 @@ class _HomeSearchFieldState extends State<_HomeSearchField> {
     final th = widget.th;
     final hint =
         widget.state.ref.read(tProvider).tr('home.searchPlaceholder');
-    return SizedBox(
-      height: 40, // h-10
-      child: TextField(
-        controller: _controller,
-        onChanged: widget.state.updateSearchQuery,
-        style: TextStyle(
-          fontSize: 13, // text-sm
-          color: th.textPrimary, // text-ink
-        ),
-        decoration: InputDecoration(
-          isDense: true,
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-          prefixIcon: Padding(
-            padding: const EdgeInsets.only(left: 10, right: 8),
-            child: Icon(
-              LucideIcons.search,
-              size: 16,
-              color: th.textMuted,
-            ),
-          ),
-          prefixIconConstraints:
-              const BoxConstraints(minWidth: 34, minHeight: 36),
-          hintText: hint,
-          hintStyle: TextStyle(
-            fontSize: 13,
-            color: th.textMuted,
-          ),
-          filled: true,
-          fillColor: th.bgSurface, // bg-field
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide:
-                BorderSide(color: Colors.white.withAlpha(26)), // white/10
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(
-              color: Color(0x996366F1), // focus indigo-500/60
-            ),
-          ),
+    return TsundokuTextField(
+      controller: _controller,
+      onChanged: widget.state.updateSearchQuery,
+      placeholder: hint,
+      prefixIcon: Padding(
+        padding: const EdgeInsets.only(left: 10, right: 8),
+        child: Icon(
+          LucideIcons.search,
+          size: 16,
+          color: th.textMuted,
         ),
       ),
     );

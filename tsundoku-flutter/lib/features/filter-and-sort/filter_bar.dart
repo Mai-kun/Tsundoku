@@ -22,6 +22,7 @@ import '../../shared/types/enums.dart';
 import '../../shared/ui/badge.dart';
 import '../../shared/ui/button.dart';
 import '../../shared/ui/popover_menu.dart';
+import '../../shared/ui/text_field.dart';
 import '../../shared/ui/total_badge.dart';
 import '../../views/category_model.dart' show LibrarySort;
 
@@ -420,47 +421,16 @@ class _SearchFieldState extends State<_SearchField> {
   @override
   Widget build(BuildContext context) {
     final th = widget.th;
-    return SizedBox(
-      height: 40, // h-10 = 40px
-      child: TextField(
-        controller: _controller,
-        onChanged: widget.onChanged,
-        style: TextStyle(
-          fontSize: 14, // text-sm = 14px
-          color: th.textPrimary, // text-ink
-        ),
-        decoration: InputDecoration(
-          isDense: true,
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-          prefixIcon: Padding(
-            padding: const EdgeInsets.only(left: 10, right: 8),
-            child: Icon(
-              LucideIcons.search,
-              size: 18, // Search size={18}
-              color: th.textMuted,
-            ),
-          ),
-          prefixIconConstraints:
-              const BoxConstraints(minWidth: 36, minHeight: 40),
-          hintText: widget.hint,
-          hintStyle: TextStyle(
-            fontSize: 14, // text-sm = 14px
-            color: th.textMuted,
-          ),
-          filled: true,
-          fillColor: th.bgSurface, // bg-field
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8), // rounded-lg
-            borderSide:
-                BorderSide(color: Colors.white.withAlpha(26)), // white/10
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(
-              color: Color(0x996366F1), // focus:border-indigo-500/60
-            ),
-          ),
+    return TsundokuTextField(
+      controller: _controller,
+      onChanged: widget.onChanged,
+      placeholder: widget.hint,
+      prefixIcon: Padding(
+        padding: const EdgeInsets.only(left: 10, right: 8),
+        child: Icon(
+          LucideIcons.search,
+          size: 16,
+          color: th.textMuted,
         ),
       ),
     );

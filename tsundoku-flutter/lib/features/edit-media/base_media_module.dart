@@ -18,6 +18,7 @@ import 'package:tsundoku_flutter/shared/i18n/index.dart';
 import 'package:tsundoku_flutter/shared/theme/tsundoku_tokens.dart';
 import 'package:tsundoku_flutter/shared/types/enums.dart';
 import 'package:tsundoku_flutter/shared/ui/popover_menu.dart';
+import 'package:tsundoku_flutter/shared/ui/text_field.dart';
 
 /// Поля ввода базовых данных. Каждый TextBinding синхронизирует контроллер
 /// с внешним значением (Svelte `$bindable`).
@@ -68,43 +69,15 @@ class _TextBindingState extends State<_TextBinding> {
 
   @override
   Widget build(BuildContext context) {
-    final th = TsundokuTheme.of(context);
-    return TextField(
+    return TsundokuTextField(
       controller: _controller,
       onChanged: widget.onChange,
       keyboardType: widget.keyboardType,
       inputFormatters: widget.inputFormatters,
-      style: TextStyle(
-        fontSize: 14, // text-sm
-        fontWeight: FontWeight.w400,
-        color: th.textPrimary,
-      ),
-      decoration: InputDecoration(
-        isDense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10), // px-3 h-10
-        filled: true,
-        fillColor: th.bgSurface, // bg-field
-        border: _fieldBorder(th),
-        enabledBorder: _fieldBorder(th),
-        focusedBorder: _fieldBorder(th, focused: true),
-        hintText: widget.placeholder,
-        hintStyle: TextStyle(color: th.textMuted),
-      ),
+      placeholder: widget.placeholder,
     );
   }
 }
-
-OutlineInputBorder _fieldBorder(TsundokuTheme th, {bool focused = false}) =>
-    OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8), // rounded-lg
-      borderSide: BorderSide(
-        color: focused
-            ? th.accent.withAlpha(153) // focus:border-accent
-            : Colors.white.withAlpha(26), // border-white/10
-        width: 1,
-      ),
-    );
 
 /// Лейбл над полем: `text-sm font-medium space-y-1.5`.
 class _FieldLabel extends StatelessWidget {

@@ -15,6 +15,8 @@ import 'package:tsundoku_flutter/shared/platform/platform.dart';
 import 'package:tsundoku_flutter/shared/theme/tsundoku_tokens.dart';
 import 'package:tsundoku_flutter/shared/types/dtos.dart';
 import 'package:tsundoku_flutter/shared/ui/button.dart';
+import 'package:tsundoku_flutter/shared/ui/segmented_control.dart';
+import 'package:tsundoku_flutter/shared/ui/text_field.dart';
 
 enum ImportProvider {
   anilist('anilist', 'AniList', 'AL', 'JSON или профиль пользователя'),
@@ -1006,35 +1008,11 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
             child: Row(
               children: [
                 Expanded(
-                  child: TextField(
+                  child: TsundokuTextField(
                     controller: _anilistUsernameController,
-                    style: const TextStyle(fontSize: 14, color: Colors.white),
                     onSubmitted: (_) => _runImport(),
-                    decoration: InputDecoration(
-                      labelText: t.tr('importModal.anilistUsername'),
-                      labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                      hintText: t.tr('importModal.anilistUsernamePlaceholder'),
-                      hintStyle: const TextStyle(
-                          color: Color(0xFF64748B), fontSize: 14),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
-                      filled: true,
-                      fillColor: const Color(0x0AFFFFFF),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide:
-                            const BorderSide(color: Color(0x1AFFFFFF)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide:
-                            const BorderSide(color: Color(0x1AFFFFFF)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: st.accent),
-                      ),
-                    ),
+                    labelText: t.tr('importModal.anilistUsername'),
+                    placeholder: t.tr('importModal.anilistUsernamePlaceholder'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1120,68 +1098,20 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextField(
+                TsundokuTextField(
                   controller: _steamProfileController,
-                  style: const TextStyle(fontSize: 14, color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: 'Steam ID или ссылка на профиль',
-                    labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                    hintText:
-                        'https://steamcommunity.com/id/... or 76561198...',
-                    hintStyle: const TextStyle(
-                        color: Color(0xFF64748B), fontSize: 13),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    filled: true,
-                    fillColor: const Color(0x0AFFFFFF),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide:
-                          const BorderSide(color: Color(0x1AFFFFFF)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide:
-                          const BorderSide(color: Color(0x1AFFFFFF)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: st.accent),
-                    ),
-                  ),
+                  labelText: 'Steam ID или ссылка на профиль',
+                  placeholder:
+                      'https://steamcommunity.com/id/... or 76561198...',
                 ),
                 const SizedBox(height: 14),
-                TextField(
+                TsundokuTextField(
                   controller: _steamApiKeyController,
                   obscureText: true,
-                  style: const TextStyle(fontSize: 14, color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: 'Steam Web API Key (опционально)',
-                    labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                    hintText: _steamKeyConfigured
-                        ? 'Ключ уже сохранён на сервере'
-                        : '••••••••••••••••••••••••••••••••',
-                    hintStyle: const TextStyle(
-                        color: Color(0xFF64748B), fontSize: 13),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    filled: true,
-                    fillColor: const Color(0x0AFFFFFF),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide:
-                          const BorderSide(color: Color(0x1AFFFFFF)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide:
-                          const BorderSide(color: Color(0x1AFFFFFF)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: st.accent),
-                    ),
-                  ),
+                  labelText: 'Steam Web API Key (опционально)',
+                  placeholder: _steamKeyConfigured
+                      ? 'Ключ уже сохранён на сервере'
+                      : '••••••••••••••••••••••••••••••••',
                 ),
                 if (_steamKeyConfigured) ...[
                   const SizedBox(height: 6),
@@ -1552,27 +1482,20 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
         const SizedBox(height: 12),
 
         // 3. Tabs: Collector vs File
-        Row(
-          children: [
-            Expanded(
-              child: _buildTabPill(
-                label: t.tr('importModal.instantCollector'),
-                active: _mangalibMode == 'collector',
-                onTap: () => setState(() => _mangalibMode = 'collector'),
-                st: st,
-                icon: LucideIcons.sparkles,
-              ),
+        TsundokuSegmentedControl<String>(
+          value: _mangalibMode,
+          options: [
+            SegmentedOption(
+              value: 'collector',
+              label: t.tr('importModal.instantCollector'),
+              icon: LucideIcons.sparkles,
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildTabPill(
-                label: t.tr('importModal.fileJsonCsv'),
-                active: _mangalibMode == 'file',
-                onTap: () => setState(() => _mangalibMode = 'file'),
-                st: st,
-              ),
+            SegmentedOption(
+              value: 'file',
+              label: t.tr('importModal.fileJsonCsv'),
             ),
           ],
+          onChanged: (val) => setState(() => _mangalibMode = val),
         ),
         const SizedBox(height: 12),
 
@@ -1627,35 +1550,11 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
+                      child: TsundokuTextField(
                         controller: _mangalibProfileController,
-                        style: const TextStyle(
-                            fontSize: 14, color: Colors.white),
-                        decoration: InputDecoration(
-                          hintText: mangalibAuth.userId.isNotEmpty
-                              ? mangalibAuth.userId
-                              : '123456 · https://mangalib.org/ru/users/123456',
-                          hintStyle: const TextStyle(
-                              color: Color(0xFF64748B), fontSize: 13),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 10),
-                          filled: true,
-                          fillColor: const Color(0x0AFFFFFF),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide:
-                                const BorderSide(color: Color(0x1AFFFFFF)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide:
-                                const BorderSide(color: Color(0x1AFFFFFF)),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: st.accent),
-                          ),
-                        ),
+                        placeholder: mangalibAuth.userId.isNotEmpty
+                            ? mangalibAuth.userId
+                            : '123456 · https://mangalib.org/ru/users/123456',
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -2100,37 +1999,10 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                   ),
                   const SizedBox(height: 12),
                   if (_listMode == 'new')
-                    TextField(
+                    TsundokuTextField(
                       controller: _newListNameController,
-                      style: const TextStyle(
-                          fontSize: 13, color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: 'Название нового списка',
-                        labelStyle: const TextStyle(
-                            color: Color(0xFF94A3B8), fontSize: 13),
-                        hintText: t.tf('importModal.defaultList',
-                            [_provider.label]),
-                        hintStyle: const TextStyle(
-                            color: Color(0xFF64748B), fontSize: 13),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
-                        filled: true,
-                        fillColor: const Color(0x0AFFFFFF),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide:
-                              const BorderSide(color: Color(0x1AFFFFFF)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide:
-                              const BorderSide(color: Color(0x1AFFFFFF)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: st.accent),
-                        ),
-                      ),
+                      labelText: 'Название нового списка',
+                      placeholder: t.tf('importModal.defaultList', [_provider.label]),
                     )
                   else
                     DropdownButtonFormField<String>(

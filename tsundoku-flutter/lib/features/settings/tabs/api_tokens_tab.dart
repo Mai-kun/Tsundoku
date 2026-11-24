@@ -17,6 +17,7 @@ import '../../../shared/i18n/index.dart';
 import '../../../shared/platform/platform.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
 import '../../../shared/types/dtos.dart';
+import '../../../shared/ui/text_field.dart';
 import '../../../shared/ui/toast.dart';
 
 class ApiTokensTab extends ConsumerStatefulWidget {
@@ -140,31 +141,10 @@ class _ApiTokensTabState extends ConsumerState<ApiTokensTab> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    TextField(
+                    TsundokuTextField(
                       controller: nameController,
                       onChanged: (_) => setDialogState(() {}),
-                      maxLength: 100,
-                      style: TextStyle(fontSize: 13, color: theme.textPrimary),
-                      decoration: InputDecoration(
-                        counterText: '',
-                        hintText: t.tr('settingsModal.apiTokens.namePlaceholder'),
-                        hintStyle: TextStyle(color: theme.textMuted),
-                        filled: true,
-                        fillColor: theme.bgSurface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: theme.borderSubtle),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: theme.borderSubtle),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: theme.accent),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      ),
+                      placeholder: t.tr('settingsModal.apiTokens.namePlaceholder'),
                     ),
                     const SizedBox(height: 14),
 
@@ -174,29 +154,10 @@ class _ApiTokensTabState extends ConsumerState<ApiTokensTab> {
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.textSecondary),
                     ),
                     const SizedBox(height: 6),
-                    TextField(
+                    TsundokuTextField(
                       controller: daysController,
                       keyboardType: TextInputType.number,
-                      style: TextStyle(fontSize: 13, color: theme.textPrimary),
-                      decoration: InputDecoration(
-                        hintText: t.tr('settingsModal.apiTokens.expiresInDaysPlaceholder'),
-                        hintStyle: TextStyle(color: theme.textMuted),
-                        filled: true,
-                        fillColor: theme.bgSurface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: theme.borderSubtle),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: theme.borderSubtle),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: theme.accent),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      ),
+                      placeholder: t.tr('settingsModal.apiTokens.expiresInDaysPlaceholder'),
                     ),
                     const SizedBox(height: 24),
 

@@ -17,6 +17,11 @@ library;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+// flutter_agentation 1.0.0 использует legacy-виджеты из package:flutter/material.dart,
+// тогда как приложение работает на material_ui (разделение Flutter 3.47+).
+// В release-сборке этот импорт не используется (вырезается через kDebugMode).
+// ignore: deprecated_member_use
+import 'package:flutter/material.dart' as legacy_material;
 import 'package:flutter_agentation/flutter_agentation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marionette_flutter/marionette_flutter.dart';
@@ -133,14 +138,37 @@ class _ApiBootstrapState extends ConsumerState<_ApiBootstrap> {
   @override
   Widget build(BuildContext context) {
     return TsundokuApp(
-      debugOverlayBuilder: kDebugMode
-          ? FlutterAgentation.builder(
-              appName: 'Tsundoku',
-              mcpEnabled: true,
-              mcpPort: 4747,
-              initialToolbarMinimized: true,
-            )
-          : null,
+      debugOverlayBuilder: kDebugMode ? buildDebugAgentationOverlay() : null,
     );
   }
+}
+
+/// Debug-only обёртка Flutter Agentation с legacy `MaterialLocalizations` /
+/// `Theme` / `Material`, нужными для `TextField` внутри оверлея поверх
+/// `material_ui.MaterialApp`.
+@visibleForTesting
+TransitionBuilder buildDebugAgentationOverlay({bool mcpEnabled = true}) {
+  final agentationBuilder = FlutterAgentation.builder(
+    appName: 'Tsundoku',
+    mcpEnabled: mcpEnabled,
+    mcpPort: 4747,
+    initialToolbarMinimized: true,
+  );
+  return (BuildContext context, Widget? child) {
+    return Localizations.override(
+      context: context,
+      delegates: const <LocalizationsDelegate<dynamic>>[
+        legacy_material.DefaultMaterialLocalizations.delegate,
+      ],
+      child: legacy_material.Theme(
+        data: legacy_material.ThemeData.dark(),
+        child: legacy_material.Material(
+          type: legacy_material.MaterialType.transparency,
+          child: Builder(
+            builder: (ctx) => agentationBuilder(ctx, child),
+          ),
+        ),
+      ),
+    );
+  };
 }

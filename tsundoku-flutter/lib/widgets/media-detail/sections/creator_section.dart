@@ -415,7 +415,10 @@ class _CreatorSectionState extends ConsumerState<CreatorSection> {
                   LayoutBuilder(
                     builder: (context, constraints) {
                       // grid grid-cols-1 sm:grid-cols-2 gap-2.5
-                      final isSm = constraints.maxWidth >= 500;
+                      // В правой колонке OverviewTab ширина блока ~380-450px на десктопе,
+                      // поэтому проверяем ширину вьюпорта (>= 640px), как sm: в Tailwind.
+                      final isSm = MediaQuery.sizeOf(context).width >= 640 &&
+                          constraints.maxWidth >= 260;
                       final cardWidth = isSm
                           ? (constraints.maxWidth - 10) / 2
                           : constraints.maxWidth;
@@ -505,17 +508,10 @@ class _StaffCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ref = ProviderScope.containerOf(context);
-    return Container(
-      padding: const EdgeInsets.all(10), // p-2.5
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12), // rounded-xl
-        border: Border.all(color: Colors.white.withAlpha(13)), // white/5
-        color: Colors.white.withAlpha(8), // bg-white/[0.03]
-      ),
-      child: Row(
-        crossAxisAlignment:
-            large ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-        children: [
+    return Row(
+      crossAxisAlignment:
+          large ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      children: [
           if (person.imageUrl != null && person.imageUrl!.isNotEmpty)
             GestureDetector(
               onTap: () {
@@ -599,7 +595,6 @@ class _StaffCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
     );
   }
 }

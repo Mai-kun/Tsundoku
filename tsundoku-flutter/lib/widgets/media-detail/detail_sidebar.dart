@@ -31,8 +31,10 @@ import '../../shared/ui/button.dart';
 import '../../shared/ui/hold_to_delete.dart';
 import '../../shared/ui/lightbox.dart';
 import '../../shared/ui/media_cover_placeholder.dart';
+import '../../shared/ui/modal.dart';
 import '../../shared/platform/platform.dart';
 import '../../shared/ui/panel.dart';
+import '../../shared/ui/text_field.dart';
 import '../../shared/ui/tsundoku_image.dart';
 import '../../shared/ui/popover_menu.dart';
 import '../../shared/ui/toast.dart';
@@ -312,7 +314,7 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
   List<String> get _comboPresets {
     final scope = _comboScope;
     if (scope == VoiceOptionScope.read) {
-      return ref.read(tProvider).tl('detail.readingFormatPresets');
+      return ref.read(tProvider).tfl('detail.readingFormatPresets');
     }
     return ref
         .read(tProvider)
@@ -456,46 +458,50 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
             ],
           ),
         ),
-        // Модалки sidebar'а (динамический import → прямой рендер).
-        if (_isActivityOpen)
-          Positioned.fill(
-            child: MediaActivityModal(
-              isOpen: true,
-              mediaId: widget.media.id,
-              title: widget.media.title,
-              onClose: () => setState(() => _isActivityOpen = false),
-            ),
+        // Модалки sidebar'а: через OverlayPortal, чтобы перекрывать весь
+        // viewport поверх узкой 320px-колонки и ScrollView.
+        TsundokuOverlayModal(
+          isOpen: _isActivityOpen,
+          modal: MediaActivityModal(
+            isOpen: true,
+            mediaId: widget.media.id,
+            title: widget.media.title,
+            onClose: () => setState(() => _isActivityOpen = false),
           ),
-        ListPicker(
-          key: _listPickerKey,
-          mediaId: widget.media.id,
-          isOpen: _isListPickerOpen,
-          onClose: () => setState(() => _isListPickerOpen = false),
-          onCreateList: () => setState(() => _isCreateListOpen = true),
         ),
-        if (_isCreateListOpen)
-          Positioned.fill(
-            child: CreateListModal(
-              isOpen: true,
-              onClose: () => setState(() => _isCreateListOpen = false),
-              onSaved: () {
-                setState(() => _isCreateListOpen = false);
-                _listPickerKey.currentState?.refreshLists();
-              },
-            ),
+        TsundokuOverlayModal(
+          isOpen: _isListPickerOpen,
+          modal: ListPicker(
+            key: _listPickerKey,
+            mediaId: widget.media.id,
+            isOpen: _isListPickerOpen,
+            onClose: () => setState(() => _isListPickerOpen = false),
+            onCreateList: () => setState(() => _isCreateListOpen = true),
           ),
-        if (_isCoverManagerOpen)
-          Positioned.fill(
-            child: CoverManagerModal(
-              isOpen: true,
-              media: widget.media,
-              onClose: () => setState(() => _isCoverManagerOpen = false),
-              onUpdate: (updated) {
-                widget.onAutoRefreshed?.call(updated);
-                widget.onMediaUpdated?.call(updated);
-              },
-            ),
+        ),
+        TsundokuOverlayModal(
+          isOpen: _isCreateListOpen,
+          modal: CreateListModal(
+            isOpen: true,
+            onClose: () => setState(() => _isCreateListOpen = false),
+            onSaved: () {
+              setState(() => _isCreateListOpen = false);
+              _listPickerKey.currentState?.refreshLists();
+            },
           ),
+        ),
+        TsundokuOverlayModal(
+          isOpen: _isCoverManagerOpen,
+          modal: CoverManagerModal(
+            isOpen: true,
+            media: widget.media,
+            onClose: () => setState(() => _isCoverManagerOpen = false),
+            onUpdate: (updated) {
+              widget.onAutoRefreshed?.call(updated);
+              widget.onMediaUpdated?.call(updated);
+            },
+          ),
+        ),
       ],
     );
   }
@@ -1225,8 +1231,8 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
                 t: t,
                 hold: _deleteHold,
                 deleteBusy: widget.deleteBusy,
-                onTapDown: () => setState(_deleteHold.press),
-                onTapUp: () => setState(_deleteHold.release),
+                onTapDown: _deleteHold.press,
+                onTapUp: _deleteHold.release,
               ),
               if (widget.deleteError != null)
                 Padding(
@@ -1268,7 +1274,7 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
         ),
         TsundokuPanel(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Alt-тайтлы: первые два + разворот.
               if (altTitles.isNotEmpty) ...[
@@ -1466,12 +1472,6 @@ class _ScorePopState extends State<_ScorePop>
       curve: const Cubic(0.16, 1, 0.3, 1),
     ));
     _controller.forward();
-  }
-
-  @override
-  void didUpdateWidget(covariant _ScorePop oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.child != widget.child) _controller.forward(from: 0);
   }
 
   @override
@@ -2028,7 +2028,8 @@ class _AxisSlider extends StatelessWidget {
   }
 }
 
-/// Voice/reading комбо: input + чеброн-поповер со звёздами.
+/// Voice/reading комбо: единый компонент поля ввода и выпадающего списка,
+/// список открывается сразу при вводе текста или по нажатию на шеврон.
 class _VoiceCombo extends ConsumerStatefulWidget {
   final _DetailSidebarState state;
   final I18nDictionary t;
@@ -2048,13 +2049,32 @@ class _VoiceCombo extends ConsumerStatefulWidget {
 
 class _VoiceComboState extends ConsumerState<_VoiceCombo> {
   late final TextEditingController _controller;
+  final FocusNode _focusNode = FocusNode();
+  final OverlayPortalController _portalController = OverlayPortalController();
+  final LayerLink _comboLink = LayerLink();
+  final GlobalKey _comboKey = GlobalKey();
   String _lastExternal = '';
+  bool _isOpen = false;
+  bool _filterByInput = false;
+
+  String get _tapGroupId => 'voice-combo-${widget.state.widget.media.id}';
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.state.widget.watchedOnInput);
+    _controller =
+        TextEditingController(text: widget.state.widget.watchedOnInput);
     _lastExternal = widget.state.widget.watchedOnInput;
+    _focusNode.addListener(_onFocusChanged);
+  }
+
+  void _onFocusChanged() {
+    if (!mounted) return;
+    if (_focusNode.hasFocus) {
+      _openMenu(filterByInput: false);
+    } else {
+      setState(() {});
+    }
   }
 
   @override
@@ -2070,8 +2090,51 @@ class _VoiceComboState extends ConsumerState<_VoiceCombo> {
 
   @override
   void dispose() {
+    PopoverCoordinator.instance.unregister(_closeMenu);
+    _focusNode.removeListener(_onFocusChanged);
+    _focusNode.dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  List<String> _filteredOptions() {
+    final all = widget.state._comboOptions;
+    if (!_filterByInput) return all;
+    final query = _controller.text.trim().toLowerCase();
+    if (query.isEmpty) return all;
+    return all.where((o) => o.toLowerCase().contains(query)).toList();
+  }
+
+  void _openMenu({required bool filterByInput}) {
+    _filterByInput = filterByInput;
+    if (_filteredOptions().isEmpty) {
+      _closeMenu();
+      return;
+    }
+    PopoverCoordinator.instance.registerOpen(_closeMenu);
+    if (!_isOpen) {
+      setState(() => _isOpen = true);
+      _portalController.show();
+    } else {
+      setState(() {});
+    }
+  }
+
+  void _closeMenu() {
+    PopoverCoordinator.instance.unregister(_closeMenu);
+    if (!mounted) return;
+    if (_isOpen || _portalController.isShowing) {
+      setState(() => _isOpen = false);
+      if (_portalController.isShowing) _portalController.hide();
+    }
+  }
+
+  void _toggleMenu() {
+    if (_isOpen) {
+      _closeMenu();
+    } else {
+      _openMenu(filterByInput: false);
+    }
   }
 
   @override
@@ -2079,87 +2142,142 @@ class _VoiceComboState extends ConsumerState<_VoiceCombo> {
     final widget = this.widget;
     final state = widget.state;
     final t = widget.t;
-    final th = widget.th;
     final comboLabel = t.tr(state._comboScope == VoiceOptionScope.read
         ? 'detail.readingFormatLabel'
         : 'detail.voiceStudioLabel');
-    final comboOptions = state._comboOptions;
     final watchedOnInput = state.widget.watchedOnInput;
 
-    return Container(
-      height: 32, // h-8
-      constraints: const BoxConstraints(maxWidth: 208), // max-w-[13rem]
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8), // rounded-lg
-        border: Border.all(
-            color: Colors.white.withAlpha(26)), // border-white/10
-        color: th.bgSurface, // bg-field
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              onChanged: (value) {
-                state.widget.onWatchedOnInput(value);
-                state.widget.onWatchedOnDirty();
-              },
-              onSubmitted: (_) {
-                // Enter коммитит через blur-путь.
-                FocusScope.of(context).unfocus();
-                state._commitComboValue(state.widget.watchedOnInput);
-              },
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 12, color: Colors.white),
-              decoration: InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                hintText: t.tr('detail.watchedOnPlaceholder'),
-                hintStyle: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withAlpha(77), // white/30
+    return OverlayPortal(
+      controller: _portalController,
+      overlayChildBuilder: (menuContext) {
+        final options = _filteredOptions();
+        if (options.isEmpty) return const SizedBox.shrink();
+
+        final box = _comboKey.currentContext?.findRenderObject() as RenderBox?;
+        final comboWidth =
+            (box != null && box.hasSize) ? box.size.width : 190.0;
+        final menuWidth = comboWidth < 190.0 ? 190.0 : comboWidth;
+
+        return Align(
+          alignment: Alignment.topLeft,
+          child: CompositedTransformFollower(
+            link: _comboLink,
+            targetAnchor: Alignment.bottomRight,
+            followerAnchor: Alignment.topRight,
+            offset: const Offset(0, 6),
+            showWhenUnlinked: false,
+            child: TapRegion(
+              groupId: _tapGroupId,
+              onTapOutside: (_) => _closeMenu(),
+              child: Material(
+                color: const Color(0xFF151922),
+                elevation: 12,
+                shadowColor: const Color(0x80000000),
+                borderOnForeground: true,
+                shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(TsundokuPalette.radiusSelector),
+                  side: const BorderSide(color: Color(0x14FFFFFF)),
                 ),
-              ),
-            ),
-          ),
-          TsundokuPopoverMenu<String>(
-            id: 'watched-on-${state.widget.media.id}',
-            options: [
-              for (final value in comboOptions)
-                PopoverOption(value: value, label: value),
-            ],
-            selected: watchedOnInput,
-            onSelect: (value) => state._commitComboValue(value),
-            label: comboLabel,
-            placement: PopoverPlacement.bottomEnd,
-            matchTriggerWidth: false,
-            optionClass: 'text-xs',
-            trigger: (context, ctx) => IgnorePointer(
-              child: Container(
-                width: 28, // w-7
-                alignment: Alignment.center,
-                child: AnimatedRotation(
-                  turns: ctx.isOpen ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    LucideIcons.chevronDown,
-                    size: 13,
-                    color: ctx.isOpen
-                        ? Colors.white
-                        : Colors.white.withAlpha(153), // white/60
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth: menuWidth,
+                    maxWidth: 240,
+                    maxHeight: 256,
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(4),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (final value in options)
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(6),
+                              hoverColor: Colors.white.withAlpha(15),
+                              onTap: () {
+                                state._commitComboValue(value);
+                                _controller.text = value;
+                                _closeMenu();
+                                _focusNode.unfocus();
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 6),
+                                child: _ComboOptionRow(
+                                  state: state,
+                                  option: PopoverOption(
+                                      value: value, label: value),
+                                  selected: value == watchedOnInput,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-            // renderOption-аналог: звезда-избранное + check.
-            optionBuilder: (context, optionCtx) => _ComboOptionRow(
-              state: state,
-              option: optionCtx.option,
-              selected: optionCtx.selected,
+          ),
+        );
+      },
+      child: TapRegion(
+        groupId: _tapGroupId,
+        child: CompositedTransformTarget(
+          link: _comboLink,
+          child: ConstrainedBox(
+            key: _comboKey,
+            constraints: const BoxConstraints(maxWidth: 208), // max-w-[13rem]
+            child: TsundokuTextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              height: 32,
+              onChanged: (value) {
+                state.widget.onWatchedOnInput(value);
+                state.widget.onWatchedOnDirty();
+                _openMenu(filterByInput: value.trim().isNotEmpty);
+              },
+              onSubmitted: (_) {
+                // Enter коммитит через blur-путь.
+                _closeMenu();
+                FocusScope.of(context).unfocus();
+                state._commitComboValue(state.widget.watchedOnInput);
+              },
+              textAlign: TextAlign.right,
+              placeholder: t.tr('detail.watchedOnPlaceholder'),
+              style: const TextStyle(fontSize: 12, color: Colors.white),
+              contentPadding: const EdgeInsets.only(left: 10, right: 4, top: 6, bottom: 6),
+              suffix: Semantics(
+                button: true,
+                label: comboLabel,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _toggleMenu,
+                  child: SizedBox(
+                    width: 28,
+                    height: 32,
+                    child: Center(
+                      child: AnimatedRotation(
+                        turns: _isOpen ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(
+                          LucideIcons.chevronDown,
+                          size: 13,
+                          color: _isOpen
+                              ? Colors.white
+                              : Colors.white.withAlpha(153),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -2263,36 +2381,34 @@ class _ActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
-      opacity: disabled ? 0.5 : 1,
-      child: GestureDetector(
-        onTap: disabled ? null : onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 10, vertical: 8), // px-2.5 (sm)
-          child: Row(
-            children: [
-              AnimatedRotation(
-                turns: spin ? 1 : 0,
-                duration:
-                    spin ? const Duration(seconds: 1) : Duration.zero,
-                child: Icon(icon, size: 14, color: iconColor),
-              ),
-              const SizedBox(width: 8), // gap-2
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14, // text-sm (sm-кнопка)
-                    fontWeight: FontWeight.w500,
-                    color: th.textPrimary,
-                  ),
+    return TsundokuButton(
+      variant: ButtonVariant.ghost,
+      size: ButtonSize.sm,
+      disabled: disabled,
+      onPressed: onTap,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Row(
+          children: [
+            AnimatedRotation(
+              turns: spin ? 1 : 0,
+              duration: spin ? const Duration(seconds: 1) : Duration.zero,
+              child: Icon(icon, size: 14, color: iconColor),
+            ),
+            const SizedBox(width: 8), // gap-2
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14, // text-sm (sm-кнопка)
+                  fontWeight: FontWeight.w500,
+                  color: th.textPrimary,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -2319,42 +2435,51 @@ class _HoldDeleteButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = hold.holding
-        ? t.tr('holdToDelete.deleting')
-        : hold.hintVisible
-            ? t.tr('holdToDelete.hint')
-            : t.tr('detailModal.delete');
+    return MouseRegion(
+      onExit: (_) => onTapUp(),
+      child: Listener(
+        behavior: HitTestBehavior.opaque,
+        onPointerDown: deleteBusy ? null : (_) => onTapDown(),
+        onPointerUp: deleteBusy ? null : (_) => onTapUp(),
+        onPointerCancel: deleteBusy ? null : (_) => onTapUp(),
+        child: ListenableBuilder(
+          listenable: hold.changes,
+          builder: (context, _) {
+            final label = hold.holding
+                ? t.tr('holdToDelete.deleting')
+                : hold.hintVisible
+                    ? t.tr('holdToDelete.hint')
+                    : t.tr('detailModal.delete');
 
-    return GestureDetector(
-      onTapDown: (_) => onTapDown(),
-      onTapUp: (_) => onTapUp(),
-      onTapCancel: onTapUp,
-      child: TsundokuButton(
-        variant: ButtonVariant.ghost,
-        size: ButtonSize.sm,
-        disabled: deleteBusy,
-        holdProgress: hold.progress,
-        onPressed: () {},
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Row(
-            children: [
-              Icon(LucideIcons.trash2, size: 14, color: _kRose400),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: th.dangerText, // text-danger-text
-                  ),
+            return TsundokuButton(
+              variant: ButtonVariant.ghost,
+              size: ButtonSize.sm,
+              disabled: deleteBusy,
+              holdProgress: hold.progress,
+              onPressed: () {},
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  children: [
+                    Icon(LucideIcons.trash2, size: 14, color: _kRose400),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: th.dangerText, // text-danger-text
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -2461,35 +2586,41 @@ class _SpecValue extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (row.href != null) {
-      return GestureDetector(
-        onTap: () =>
-            unawaited(platformService.openExternalUrl(row.href!)),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            if (row.importSource != null)
-              Text(
-                '${row.importSource} · ',
-                style: const TextStyle(
-                    fontSize: 12, color: _kZinc400), // text-zinc-400
-              ),
-            Flexible(
-              child: Text(
-                row.value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: _kAccentSoft, // text-accent-soft
+      return Align(
+        alignment: Alignment.centerRight,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: () =>
+                unawaited(platformService.openExternalUrl(row.href!)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (row.importSource != null)
+                  Text(
+                    '${row.importSource} · ',
+                    style: const TextStyle(
+                        fontSize: 12, color: _kZinc400), // text-zinc-400
+                  ),
+                Flexible(
+                  child: Text(
+                    row.value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: _kAccentSoft, // text-accent-soft
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 4), // gap-1
+                Icon(LucideIcons.externalLink,
+                    size: 11, color: _kAccentSoft),
+              ],
             ),
-            const SizedBox(width: 4), // gap-1
-            Icon(LucideIcons.externalLink,
-                size: 11, color: _kAccentSoft),
-          ],
+          ),
         ),
       );
     }

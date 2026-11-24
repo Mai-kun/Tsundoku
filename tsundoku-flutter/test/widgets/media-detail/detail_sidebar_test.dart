@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -11,6 +12,9 @@ import 'package:tsundoku_flutter/entities/media/model/detailed_score.dart';
 import 'package:tsundoku_flutter/features/drop-reason/drop_reason_prompt.dart';
 import 'package:tsundoku_flutter/shared/api/api.dart';
 import 'package:tsundoku_flutter/shared/types/index.dart';
+import 'package:tsundoku_flutter/shared/ui/button.dart';
+import 'package:tsundoku_flutter/shared/ui/modal.dart';
+import 'package:tsundoku_flutter/widgets/media-detail/cover_manager_modal.dart';
 import 'package:tsundoku_flutter/widgets/media-detail/detail_sidebar.dart';
 import 'package:tsundoku_flutter/widgets/media-detail/detail_types.dart';
 
@@ -62,6 +66,7 @@ void main() {
     required MediaDetail media,
     int? scoreValue,
     bool ratingOpen = false,
+    double? sidebarWidth,
     List<SpecRow> specRows = const <SpecRow>[],
     ResponseBody Function(RequestOptions options)? handler,
   }) async {
@@ -84,12 +89,7 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    await tester.pumpWidget(UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp(
-        home: Material(
-          child: SingleChildScrollView(
-            child: DetailSidebar(
+    final sidebarWidget = DetailSidebar(
               media: media,
               statusOptions: const [
                 MediaStatus.planned,
@@ -127,7 +127,19 @@ void main() {
               onDelete: () async => recorder['deleted'] = true,
               specRows: specRows,
               onAutoRefreshed: (m) => recorder['refreshed'] = m,
-            ),
+            );
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        home: Material(
+          child: SingleChildScrollView(
+            child: sidebarWidth != null
+                ? Align(
+                    alignment: Alignment.topLeft,
+                    child: SizedBox(width: sidebarWidth, child: sidebarWidget),
+                  )
+                : sidebarWidget,
           ),
         ),
       ),
@@ -315,6 +327,15 @@ void main() {
     );
 
     expect(find.text('anilist.net'), findsOneWidget);
+    final hrefMouseRegion = tester.widget<MouseRegion>(
+      find
+          .ancestor(
+            of: find.text('anilist.net'),
+            matching: find.byType(MouseRegion),
+          )
+          .first,
+    );
+    expect(hrefMouseRegion.cursor, SystemMouseCursors.click);
     expect(find.text('MANGA'), findsOneWidget);
     expect(find.text('LONG'), findsOneWidget);
     expect(find.textContaining('offline'), findsOneWidget);
@@ -333,5 +354,142 @@ void main() {
     expect(find.text('Жанры'), findsOneWidget);
     expect(find.text('• Sousou no Frieren'), findsOneWidget);
     expect(find.text('• 葬送のフリーレン'), findsOneWidget);
+  });
+
+  testWidgets('voice/reading combobox открывает список при вводе текста и фильтрует опции',
+      (tester) async {
+    await pumpSidebar(
+      tester,
+      media: media({'type': 'book'}),
+    );
+
+    final field = find.byType(TextField);
+    expect(field, findsOneWidget);
+    await tester.ensureVisible(field);
+    await tester.pump();
+
+    await tester.enterText(field, 'Аудио');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('Аудиокнига'), findsOneWidget);
+    await tester.tap(find.text('Аудиокнига'));
+    await tester.pump();
+    expect(recorder['watchedOnSaved'], isTrue);
+  });
+
+  testWidgets('рейтинг-кнопка с оценкой не проигрывает ScaleTransition-анимацию при наведении',
+      (tester) async {
+    await pumpSidebar(
+      tester,
+      media: media({'score': 9}),
+      scoreValue: 9,
+    );
+    await tester.pumpAndSettle();
+
+    final scaleFinder = find.ancestor(
+      of: find.text('9'),
+      matching: find.byType(ScaleTransition),
+    );
+    expect(tester.widget<ScaleTransition>(scaleFinder).scale.value, 1.0);
+
+    final gesture =
+        await tester.createGesture(kind: PointerDeviceKind.mouse, pointer: 11);
+    await gesture.addPointer(location: tester.getCenter(find.text('9')));
+    addTearDown(gesture.removePointer);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 30));
+
+    expect(tester.widget<ScaleTransition>(scaleFinder).scale.value, 1.0);
+  });
+
+  testWidgets('кнопка удаления в панели сбрасывает прогресс наполнения при отжатии и действия используют TsundokuButton',
+      (tester) async {
+    await pumpSidebar(tester, media: media({}));
+    await tester.pumpAndSettle();
+
+    // Кнопка «Обновить метаданные» обёрнута в TsundokuButton (имеет hover-подсветку InkWell)
+    expect(
+      find.ancestor(
+        of: find.text('Обновить метаданные'),
+        matching: find.byType(TsundokuButton),
+      ),
+      findsOneWidget,
+    );
+
+    final deleteFinder = find.text('Удалить');
+    await tester.ensureVisible(deleteFinder);
+    await tester.pump();
+
+    final gesture = await tester.startGesture(tester.getCenter(deleteFinder));
+    await tester.pump(const Duration(milliseconds: 450));
+
+    final deleteButton = tester.widget<TsundokuButton>(
+      find.ancestor(
+        of: find.text('Удаление…'),
+        matching: find.byType(TsundokuButton),
+      ),
+    );
+    expect(deleteButton.holdProgress, greaterThan(0.2));
+
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    final resetButton = tester.widget<TsundokuButton>(
+      find.ancestor(
+        of: find.text('Удалить'),
+        matching: find.byType(TsundokuButton),
+      ),
+    );
+    expect(resetButton.holdProgress, 0.0);
+    expect(recorder['deleted'], isNull);
+  });
+
+  testWidgets('модалка обложек из 320px сайдбара открывается в полноэкранном overlay без сжатия',
+      (tester) async {
+    await pumpSidebar(
+      tester,
+      sidebarWidth: 320,
+      media: media({
+        'covers': [
+          {
+            'id': 'c1',
+            'thumbUrl': '/media-assets/m1/covers/c1/thumb.webp',
+            'originalUrl': '/media-assets/m1/covers/c1/original.webp',
+            'source': 'AniList',
+            'addedAt': '2024-01-02T00:00:00Z',
+          },
+        ],
+      }),
+    );
+
+    // Сам DetailSidebar зажат в 320px колонке.
+    expect(tester.getSize(find.byType(DetailSidebar)).width, 320.0);
+
+    await tester.tap(find.text('Обложки'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byType(CoverManagerModal), findsOneWidget);
+    expect(find.text('Управление обложками'), findsOneWidget);
+
+    // Оверлей модалки занимает весь viewport (1440x900), а панель шире 320px сайдбара.
+    final modalRect = tester.getRect(find.byType(TsundokuModal));
+    expect(modalRect, const Rect.fromLTWH(0, 0, 1440, 900));
+
+    final dialogSize = tester.getSize(
+      find.ancestor(
+        of: find.text('Управление обложками'),
+        matching: find.byType(Material),
+      ).first,
+    );
+    expect(dialogSize.width, 1024.0);
+
+    // Закрытие убирает модалку из overlay.
+    await tester.tap(find.byIcon(LucideIcons.x));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byType(CoverManagerModal), findsNothing);
   });
 }

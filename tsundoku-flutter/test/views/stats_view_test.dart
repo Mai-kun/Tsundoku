@@ -184,7 +184,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Сводка'), findsOneWidget);
-    expect(find.text('35 / 50 (70.0%)'), findsOneWidget);
+    expect(find.text('35 / 50 (70%)'), findsOneWidget);
   });
 
   testWidgets('успешная сводка: рендерится баннер, графики и виджеты',
@@ -203,7 +203,7 @@ void main() {
     expect(find.text('⚡ Все с прогрессом'), findsOneWidget);
 
     // Hero banner
-    expect(find.text('35 / 50 (70.0%)'), findsOneWidget);
+    expect(find.text('35 / 50 (70%)'), findsOneWidget);
     expect(find.text('8.4 / 10'), findsOneWidget);
     expect(find.text('7 дн. активности подряд'), findsOneWidget);
 

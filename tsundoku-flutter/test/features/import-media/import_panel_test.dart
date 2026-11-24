@@ -141,7 +141,7 @@ void main() {
     expect(find.text('Goodreads'), findsOneWidget);
     expect(find.text('Steam'), findsOneWidget);
     expect(find.text('Anixart'), findsOneWidget);
-    expect(find.text('CSV / JSON'), findsOneWidget);
+    expect(find.text('Свой файл'), findsOneWidget);
   });
 
   testWidgets('switches to Steam provider and shows Steam inputs',

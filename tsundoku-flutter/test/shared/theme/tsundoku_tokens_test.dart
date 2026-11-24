@@ -62,12 +62,12 @@ void main() {
     });
 
     test('import source themes (18 источников)', () {
-      // MangaLib / SocialLib (Matte terracotta) — единственные с accentDim.
-      expect(t.importMangalib.accent, rgb(194, 94, 46)); // #c25e2e
-      expect(t.importMangalib.accentDim, rgb(194, 94, 46, 0.75));
-      expect(t.importMangalib.border, rgb(194, 94, 46, 0.25));
-      expect(t.importMangalib.surface, rgb(194, 94, 46, 0.08));
-      expect(t.importMangalib.text, rgb(232, 154, 116)); // #e89a74
+      // MangaLib / SocialLib (Matte terracotta / Orange) — единственные с accentDim.
+      expect(t.importMangalib.accent, rgb(232, 125, 13)); // #e87d0d
+      expect(t.importMangalib.accentDim, rgb(232, 125, 13, 0.75));
+      expect(t.importMangalib.border, rgb(232, 125, 13, 0.25));
+      expect(t.importMangalib.surface, rgb(232, 125, 13, 0.08));
+      expect(t.importMangalib.text, const Color(0xFFFFA048)); // #ffa048
       expect(t.importSociallib, t.importMangalib);
 
       expect(t.importTmdb.accent, rgb(144, 206, 161)); // #90cea1

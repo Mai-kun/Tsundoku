@@ -54,6 +54,6 @@ void main() {
     expect(find.text('MangaLib'), findsOneWidget);
     expect(find.text('MyAnimeList'), findsOneWidget);
     expect(find.text('Steam'), findsOneWidget);
-    expect(find.text('CSV / JSON'), findsOneWidget);
+    expect(find.text('Свой файл'), findsOneWidget);
   });
 }

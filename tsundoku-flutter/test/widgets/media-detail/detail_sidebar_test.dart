@@ -143,9 +143,9 @@ void main() {
       (tester) async {
     await pumpSidebar(tester, media: media({}));
 
-    expect(find.text('Ваша история'), findsOneWidget);
-    expect(find.text('Действия'), findsOneWidget);
-    expect(find.text('Характеристики'), findsOneWidget);
+    expect(find.text('ВАША ИСТОРИЯ'), findsOneWidget);
+    expect(find.text('ДЕЙСТВИЯ'), findsOneWidget);
+    expect(find.text('ХАРАКТЕРИСТИКИ'), findsOneWidget);
     expect(find.text('Начало'), findsOneWidget); // startedLabel
     expect(find.text('Обновить метаданные'), findsOneWidget);
     // «…»-меню опций закрыто — проверяются только лицевые кнопки.

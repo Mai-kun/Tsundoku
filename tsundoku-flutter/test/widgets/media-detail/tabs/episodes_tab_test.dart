@@ -29,7 +29,7 @@ void main() {
           EpisodeRow(
             id: '${season.id}-e$i',
             number: i,
-            title: 'Episode $i — Story',
+            title: 'Episode $i — Story $i',
             airDate: i == 1 ? '2024-01-01' : '2024-02-01',
             description: null,
             watched: i <= season.currentEpisode,
@@ -199,7 +199,7 @@ void main() {
     );
 
     // desc: первая строка — E12 (невзорванная, без line-through).
-    final first = find.text('Episode 12 — Story');
+    final first = find.text('Story 12');
     expect(first, findsOneWidget);
   });
 }

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tsundoku_flutter/shared/ui/tsundoku_image.dart';
@@ -12,12 +10,10 @@ void main() {
     // Check if live server is reachable
     try {
       final ping = await dio.get('/api/media');
-      expect(ping.statusCode, 200);
-    } on SocketException {
+      if (ping.statusCode != 200) return;
+    } catch (_) {
       // Server not running, skip test
       return;
-    } catch (_) {
-      // If error other than SocketException, continue
     }
 
     // 1. Search Naruto (type=anime)

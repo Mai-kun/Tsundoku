@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Контроль загрузки настоящего Inter (а не Ahem-плейсхолдера) в тестах.
@@ -65,6 +66,48 @@ void main() {
       isFalse,
       reason: 'w700 и w900 совпали — весовая маппинг Inter неполный '
           '(ожидаются Inter-Bold.ttf и Inter-Black.ttf).',
+    );
+  });
+
+  testWidgets('Icon fonts (Lucide & MaterialIcons) render distinct glyphs',
+      (tester) async {
+    Future<Uint8List?> renderIcon(IconData icon) async {
+      final key = GlobalKey();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RepaintBoundary(
+            key: key,
+            child: Center(child: Icon(icon, size: 40)),
+          ),
+        ),
+      );
+      final boundary =
+          key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+      final image = await tester.runAsync(() => boundary.toImage(pixelRatio: 1));
+      if (image == null) return null;
+      final bytes = await tester
+          .runAsync(() => image.toByteData(format: ImageByteFormat.png));
+      return bytes?.buffer.asUint8List();
+    }
+
+    final lucideFilm = await renderIcon(LucideIcons.film);
+    final lucideBook = await renderIcon(LucideIcons.bookOpen);
+    final matCheck = await renderIcon(Icons.check);
+    final matClose = await renderIcon(Icons.close);
+
+    expect(lucideFilm, isNotNull);
+    expect(lucideBook, isNotNull);
+    expect(matCheck, isNotNull);
+    expect(matClose, isNotNull);
+    expect(
+      listEquals(lucideFilm, lucideBook),
+      isFalse,
+      reason: 'Lucide-иконки отрендерились одинаково — шрифт Lucide не загружен.',
+    );
+    expect(
+      listEquals(matCheck, matClose),
+      isFalse,
+      reason: 'MaterialIcons отрендерились одинаково — шрифт не загружен.',
     );
   });
 }

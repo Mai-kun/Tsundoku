@@ -118,7 +118,7 @@ class TsundokuBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Flexible(
-            child: DefaultTextStyle(
+            child: DefaultTextStyle.merge(
               style: TextStyle(
                 fontSize: _sizeFont(size),
                 fontWeight: FontWeight.w500,

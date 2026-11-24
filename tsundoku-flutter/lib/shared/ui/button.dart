@@ -116,7 +116,7 @@ class TsundokuButton extends StatelessWidget {
     final (:background, :text) = _variantColors(variant, th);
     final enabled = !disabled && !loading;
 
-    Widget label = DefaultTextStyle(
+    Widget label = DefaultTextStyle.merge(
       style: TextStyle(
           fontSize: geometry.fontSize,
           fontWeight: FontWeight.w500,

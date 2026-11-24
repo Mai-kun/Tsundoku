@@ -16,6 +16,7 @@ import '../../shared/api/navigation_categories.dart';
 import '../../shared/i18n/index.dart';
 import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/types/enums.dart';
+import '../../shared/ui/segmented_control.dart';
 
 /// `lg:`-граница Tailwind (Svelte-классы перестраивают разметку по ней).
 const double _lgBreakpoint = 1024;
@@ -166,20 +167,9 @@ class _SidebarState extends ConsumerState<Sidebar> {
       ],
     );
 
-    final Widget toolsLabel = Padding(
+    final Widget toolsLabel = TsundokuSectionHeader(
+      t.tr('navigation.toolsLabel'),
       padding: const EdgeInsets.only(left: 12, right: 12, bottom: 8), // px-3 pb-2
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          t.tr('navigation.toolsLabel').toUpperCase(),
-          style: TextStyle(
-            fontSize: 10, // text-[10px]
-            fontWeight: FontWeight.w600, // font-semibold
-            letterSpacing: 0.16 * 10, // tracking-[0.16em]
-            color: th.textMuted, // text-muted
-          ),
-        ),
-      ),
     );
 
     if (isDesktop) {
@@ -273,20 +263,9 @@ class _SidebarState extends ConsumerState<Sidebar> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Padding(
+                  TsundokuSectionHeader(
+                    t.tr('navigation.toolsLabel'),
                     padding: const EdgeInsets.only(left: 12, right: 12, top: 4, bottom: 4),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        t.tr('navigation.toolsLabel').toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.16 * 10,
-                          color: th.textMuted,
-                        ),
-                      ),
-                    ),
                   ),
                   // py-2.5 = 10px у мобильных tools-пунктов.
                   _NavItem(

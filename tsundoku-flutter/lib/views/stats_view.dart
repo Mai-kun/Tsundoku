@@ -5,6 +5,7 @@ import 'package:tsundoku_flutter/shared/api/api.dart';
 import 'package:tsundoku_flutter/shared/i18n/index.dart';
 import 'package:tsundoku_flutter/shared/theme/tsundoku_tokens.dart';
 import 'package:tsundoku_flutter/shared/types/models.dart';
+import 'package:tsundoku_flutter/shared/ui/segmented_control.dart';
 import 'package:tsundoku_flutter/shared/utils/ui_settings.dart';
 import 'package:tsundoku_flutter/widgets/stats/activity_heatmap.dart';
 import 'package:tsundoku_flutter/widgets/stats/backlog_health.dart';
@@ -156,74 +157,42 @@ class _StatsViewState extends ConsumerState<StatsView> {
                 builder: (context, constraints) {
                   final isSm = constraints.maxWidth >= 640; // sm:flex-row
 
-                  final tabList = Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(8), // bg-white/[0.03]
-                      border: Border.all(
-                        color: Colors.white.withAlpha(13), // border-white/5
+                  final tabList = TsundokuSegmentedControl<_StatsTab>(
+                    value: _activeTab,
+                    options: [
+                      SegmentedOption(
+                        value: _StatsTab.summary,
+                        label: t.tr('stats.tabSummary'),
+                        icon: LucideIcons.barChart3,
                       ),
-                      borderRadius: BorderRadius.circular(12), // rounded-xl
-                    ),
-                    padding: const EdgeInsets.all(4), // p-1
-                    child: Row(
-                      mainAxisSize: isSm ? MainAxisSize.min : MainAxisSize.max,
-                      children: [
-                        _TabButton(
-                          icon: LucideIcons.barChart3,
-                          label: t.tr('stats.tabSummary'),
-                          isActive: _activeTab == _StatsTab.summary,
-                          accentColor: theme.accentBright,
-                          onTap: () => setState(
-                            () => _activeTab = _StatsTab.summary,
-                          ),
-                          isFullWidth: !isSm,
-                        ),
-                        const SizedBox(width: 4),
-                        _TabButton(
-                          icon: LucideIcons.sparkles,
-                          label: t.tr('stats.tabTaste'),
-                          isActive: _activeTab == _StatsTab.taste,
-                          accentColor: theme.accentBright,
-                          onTap: () => setState(
-                            () => _activeTab = _StatsTab.taste,
-                          ),
-                          isFullWidth: !isSm,
-                        ),
-                      ],
-                    ),
+                      SegmentedOption(
+                        value: _StatsTab.taste,
+                        label: t.tr('stats.tabTaste'),
+                        icon: LucideIcons.sparkles,
+                      ),
+                    ],
+                    onChanged: (val) => setState(() => _activeTab = val),
                   );
 
-                  final scopeRadios = Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(8), // bg-white/[0.03]
-                      border: Border.all(
-                        color: Colors.white.withAlpha(13), // border-white/5
+                  final scopeRadios = TsundokuSegmentedControl<String>(
+                    value: currentScope,
+                    options: [
+                      SegmentedOption(
+                        value: 'completed',
+                        label: t.tr('stats.scopeCompleted'),
                       ),
-                      borderRadius: BorderRadius.circular(12), // rounded-xl
-                    ),
-                    padding: const EdgeInsets.all(4), // p-1
-                    child: Row(
-                      mainAxisSize: isSm ? MainAxisSize.min : MainAxisSize.max,
-                      children: [
-                        _ScopeButton(
-                          label: t.tr('stats.scopeCompleted'),
-                          isActive: currentScope == 'completed',
-                          activeBgColor: const Color(0x3310B981), // emerald-500/20
-                          activeTextColor: const Color(0xFF6EE7B7), // emerald-300
-                          onTap: () => _setScope('completed'),
-                          isFullWidth: !isSm,
-                        ),
-                        const SizedBox(width: 4),
-                        _ScopeButton(
-                          label: t.tr('stats.scopeAll'),
-                          isActive: currentScope == 'all',
-                          activeBgColor: const Color(0x33F59E0B), // amber-500/20
-                          activeTextColor: const Color(0xFFFCD34D), // amber-300
-                          onTap: () => _setScope('all'),
-                          isFullWidth: !isSm,
-                        ),
-                      ],
-                    ),
+                      SegmentedOption(
+                        value: 'all',
+                        label: t.tr('stats.scopeAll'),
+                      ),
+                    ],
+                    activeColor: currentScope == 'completed'
+                        ? const Color(0x3310B981) // emerald-500/20
+                        : const Color(0x33F59E0B), // amber-500/20
+                    activeTextColor: currentScope == 'completed'
+                        ? const Color(0xFF6EE7B7) // emerald-300
+                        : const Color(0xFFFCD34D), // amber-300
+                    onChanged: (val) => _setScope(val),
                   );
 
                   if (isSm) {
@@ -408,115 +377,6 @@ class _StatsViewState extends ConsumerState<StatsView> {
           ),
         ),
       );
-  }
-}
-
-class _TabButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final Color accentColor;
-  final VoidCallback onTap;
-  final bool isFullWidth;
-
-  const _TabButton({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.accentColor,
-    required this.onTap,
-    required this.isFullWidth,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final content = Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          height: 36, // h-9
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: isActive
-                ? accentColor.withAlpha(77) // bg-accent-bright/30
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          alignment: Alignment.center,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: isActive ? Colors.white : const Color(0xFF94A3B8),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                  color: isActive ? Colors.white : const Color(0xFF94A3B8),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    return isFullWidth ? Expanded(child: content) : content;
-  }
-}
-
-class _ScopeButton extends StatelessWidget {
-  final String label;
-  final bool isActive;
-  final Color activeBgColor;
-  final Color activeTextColor;
-  final VoidCallback onTap;
-  final bool isFullWidth;
-
-  const _ScopeButton({
-    required this.label,
-    required this.isActive,
-    required this.activeBgColor,
-    required this.activeTextColor,
-    required this.onTap,
-    required this.isFullWidth,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final content = Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          height: 36, // h-9
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: isActive ? activeBgColor : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-              color: isActive ? activeTextColor : const Color(0xFF94A3B8),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    return isFullWidth ? Expanded(child: content) : content;
   }
 }
 

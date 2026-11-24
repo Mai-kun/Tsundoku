@@ -118,11 +118,16 @@ class JobsClientController extends Notifier<JobsState> {
           .listen(
             applyJson,
             onError: (Object _) {
+              _streamSub = null;
               // Reconcile on reconnect / disconnect in case events were lost.
               syncJobs();
             },
+            onDone: () {
+              _streamSub = null;
+            },
           );
     }).catchError((Object _) {
+      _streamSub = null;
       syncJobs();
     });
     refreshPendingMatches();
@@ -159,7 +164,7 @@ class JobsClientController extends Notifier<JobsState> {
         method: 'GET',
         responseType: ResponseType.stream,
         sendTimeout: TsundokuApi.requestTimeout,
-        receiveTimeout: TsundokuApi.requestTimeout,
+        receiveTimeout: Duration.zero,
       ),
     );
   }

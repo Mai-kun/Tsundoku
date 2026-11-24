@@ -269,6 +269,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
+  golden_matrix:
+    dependency: "direct dev"
+    description:
+      name: golden_matrix
+      sha256: "07eb1b4cceedc4c41f579a915367490c617c1be73adcb5d7164f06e3517a5cc9"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.6.0"
   hooks:
     dependency: transitive
     description:

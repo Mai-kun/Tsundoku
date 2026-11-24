@@ -9,6 +9,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tsundoku_flutter/shared/api/api.dart';
+import 'package:tsundoku_flutter/shared/ui/text_field.dart';
 import 'package:tsundoku_flutter/views/home_view.dart';
 
 class StubAdapter implements HttpClientAdapter {
@@ -180,5 +181,24 @@ void main() {
       findsOneWidget,
       reason: 'карточка переехала в Завершено и осталась в дереве',
     );
+  });
+
+  testWidgets('поле поиска в тулбаре имеет высоту 36px наравне с кнопками',
+      (tester) async {
+    await pumpHome(tester);
+    final searchFieldFinder = find.byType(TsundokuTextField);
+    final inputDecoratorFinder = find.descendant(
+      of: searchFieldFinder,
+      matching: find.byType(InputDecorator),
+    );
+    final randomButtonFinder = find.ancestor(
+      of: find.byIcon(LucideIcons.dices),
+      matching: find.byType(Container),
+    ).first;
+    final searchRect = tester.getRect(inputDecoratorFinder);
+    final buttonRect = tester.getRect(randomButtonFinder);
+    expect(searchRect.height, 36.0);
+    expect(searchRect.top, buttonRect.top);
+    expect(searchRect.bottom, buttonRect.bottom);
   });
 }

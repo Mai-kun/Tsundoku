@@ -1249,139 +1249,149 @@ class _ControlPanel extends ConsumerWidget {
       return value;
     }
 
+    final pad = MediaQuery.sizeOf(context).width >= 640 ? 14.0 : 12.0;
+
     return Container(
-      padding: const EdgeInsets.all(16), // p-3 sm:p-4
+      padding: EdgeInsets.all(pad),
       decoration: BoxDecoration(
-        color: th.bgSurface, // bg-surface
+        color: th.bgSurface, // #12151c
         borderRadius: BorderRadius.circular(8), // rounded-lg
+        border: Border.all(color: th.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              Icon(
-                LucideIcons.slidersHorizontal,
-                size: 16,
-                color: th.textMuted,
-              ),
-              const SizedBox(width: 8),
-              // Группировка.
-              TsundokuPopoverMenu<String>(
-                id: 'home-grouping',
-                options: groupingOptions,
-                selected: state._groupByMode,
-                onSelect: (value) {
-                  state.updateGroupingMode(value);
-                  unawaited(ref
-                      .read(uiSettingsProvider.notifier)
-                      .setGroupByType(value == homeGroupType));
-                },
-                label: t.tr('home.grouping'),
-                placement: PopoverPlacement.bottomStart,
-                openOnHover: true,
-                closeDelay: 220,
-                trigger: (context, ctx) => _PanelIconButton(
-                  tooltip: t.tr('home.grouping'),
-                  icon: groupModeIcon(state._groupByMode),
-                  th: th,
-                  showTooltip: !ctx.isOpen,
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Категории.
-              TsundokuPopoverMenu<String>(
-                id: 'home-category',
-                options: categoryOptions,
-                selected: state._selectedCategory,
-                onSelect: (value) => state.updateCategory(value),
-                label: t.tr('home.categories'),
-                placement: PopoverPlacement.bottomStart,
-                openOnHover: true,
-                closeDelay: 220,
-                trigger: (context, ctx) => _PanelTextButton(
-                  label: categoryLabel(state._selectedCategory),
-                  th: th,
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Фильтр времени.
-              TsundokuPopoverMenu<int?>(
-                id: 'home-time-budget',
-                options: timeBudgetOptions,
-                selected: state._timeBudget,
-                onSelect: (value) => state.updateTimeBudget(value),
-                label: t.tr('timeBudget.filterTitle'),
-                placement: PopoverPlacement.bottomStart,
-                openOnHover: true,
-                closeDelay: 220,
-                initiallyOpen: state.widget.initiallyOpenTimeBudget,
-                trigger: (context, ctx) => state._timeBudget != null
-                    ? _PanelTextButton(
-                        label: formatTimeBudgetChip(state._timeBudget!,
-                            locale: ref.watch(i18nProvider).wire),
-                        icon: LucideIcons.clock3,
-                        th: th,
-                      )
-                    : _PanelIconButton(
-                        tooltip: t.tr('timeBudget.filterTitle'),
-                        icon: LucideIcons.clock3,
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(
+                      LucideIcons.slidersHorizontal,
+                      size: 16,
+                      color: th.textMuted,
+                    ),
+                    const SizedBox(width: 8),
+                    // Группировка.
+                    TsundokuPopoverMenu<String>(
+                      id: 'home-grouping',
+                      options: groupingOptions,
+                      selected: state._groupByMode,
+                      onSelect: (value) {
+                        state.updateGroupingMode(value);
+                        unawaited(ref
+                            .read(uiSettingsProvider.notifier)
+                            .setGroupByType(value == homeGroupType));
+                      },
+                      label: t.tr('home.grouping'),
+                      placement: PopoverPlacement.bottomStart,
+                      openOnHover: true,
+                      closeDelay: 220,
+                      trigger: (context, ctx) => _PanelIconButton(
+                        tooltip: t.tr('home.grouping'),
+                        icon: groupModeIcon(state._groupByMode),
                         th: th,
                         showTooltip: !ctx.isOpen,
                       ),
-              ),
-              const SizedBox(width: 8),
-              // 🎲 Случайный тайтл.
-              Tooltip(
-                message: t.tr('home.randomPick'),
-                child: GestureDetector(
-                  onTap: state.randomPick,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: th.bgSurface, // bg-field = bg-surface
-                      borderRadius: BorderRadius.circular(8), // rounded-lg
-                      border: Border.all(
-                          color: Colors.white.withAlpha(26)), // white/10
                     ),
-                    child: Icon(
-                      LucideIcons.dices, // Dices size={18}
-                      size: 18,
-                      color: th.textMuted, // text-muted
+                    const SizedBox(width: 8),
+                    // Категории.
+                    TsundokuPopoverMenu<String>(
+                      id: 'home-category',
+                      options: categoryOptions,
+                      selected: state._selectedCategory,
+                      onSelect: (value) => state.updateCategory(value),
+                      label: t.tr('home.categories'),
+                      placement: PopoverPlacement.bottomStart,
+                      openOnHover: true,
+                      closeDelay: 220,
+                      trigger: (context, ctx) => _PanelTextButton(
+                        label: categoryLabel(state._selectedCategory),
+                        th: th,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    // Фильтр времени.
+                    TsundokuPopoverMenu<int?>(
+                      id: 'home-time-budget',
+                      options: timeBudgetOptions,
+                      selected: state._timeBudget,
+                      onSelect: (value) => state.updateTimeBudget(value),
+                      label: t.tr('timeBudget.filterTitle'),
+                      placement: PopoverPlacement.bottomStart,
+                      openOnHover: true,
+                      closeDelay: 220,
+                      initiallyOpen: state.widget.initiallyOpenTimeBudget,
+                      trigger: (context, ctx) => state._timeBudget != null
+                          ? _PanelTextButton(
+                              label: formatTimeBudgetChip(state._timeBudget!,
+                                  locale: ref.watch(i18nProvider).wire),
+                              icon: LucideIcons.clock3,
+                              th: th,
+                            )
+                          : _PanelIconButton(
+                              tooltip: t.tr('timeBudget.filterTitle'),
+                              icon: LucideIcons.clock3,
+                              th: th,
+                              showTooltip: !ctx.isOpen,
+                            ),
+                    ),
+                    const SizedBox(width: 8),
+                    // 🎲 Случайный тайтл.
+                    Tooltip(
+                      message: t.tr('home.randomPick'),
+                      child: GestureDetector(
+                        onTap: state.randomPick,
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: th.bgElevated,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                                color: Colors.white.withAlpha(26)), // white/10
+                          ),
+                          child: Icon(
+                            LucideIcons.dices,
+                            size: 16,
+                            color: th.textMuted,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Spacer(),
               // Счётчик по центру.
               if (!state._loading && state._loadError == null)
-                TsundokuTotalBadge(total: filteredTotal),
-              const Spacer(),
+                TsundokuTotalBadge(total: filteredTotal)
+              else
+                const SizedBox.shrink(),
               // Поиск + лимит + сортировка.
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 224, // lg:w-56
-                    child: _HomeSearchField(state: state, th: th),
-                  ),
-                  const SizedBox(width: 8),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Flexible(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 220),
+                        child: _HomeSearchField(state: state, th: th),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     // Лимит секций: role="switch".
                     Tooltip(
                       message: t.tr('home.limitTooltip'),
                       child: GestureDetector(
                         onTap: state.toggleShowAll,
                         child: Container(
-                          height: 40,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12), // px-3
+                          height: 36,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
                           decoration: BoxDecoration(
                             color: state._showAll
                                 ? const Color(0x336366F1) // bg-indigo-500/20
-                                : th.bgSurface, // bg-field
-                            borderRadius:
-                                BorderRadius.circular(8), // rounded-lg
+                                : th.bgElevated,
+                            borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: state._showAll
                                   ? const Color(0x996366F1) // indigo-500/60
@@ -1394,8 +1404,8 @@ class _ControlPanel extends ConsumerWidget {
                                   ? t.tr('home.limitAll')
                                   : '${state._sectionLimit}',
                               style: TextStyle(
-                                fontSize: 12, // text-xs
-                                fontWeight: FontWeight.w600, // font-semibold
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
                                 color: state._showAll
                                     ? const Color(0xFFA5B4FC) // indigo-300
                                     : th.textPrimary, // text-ink
@@ -1424,6 +1434,7 @@ class _ControlPanel extends ConsumerWidget {
                     ),
                   ],
                 ),
+              ),
             ],
           ),
           // Чипы активных фильтров.
@@ -1501,14 +1512,14 @@ class _PanelIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final body = IgnorePointer(
       child: Container(
-        width: 40, // h-10 w-10
-        height: 40,
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(
-          color: th.bgSurface, // bg-field = var(--bg-surface)
-          borderRadius: BorderRadius.circular(8), // rounded-lg
+          color: th.bgElevated,
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.white.withAlpha(26)), // white/10
         ),
-        child: Icon(icon, size: 18, color: th.textMuted),
+        child: Icon(icon, size: 16, color: th.textMuted),
       ),
     );
     if (showTooltip && tooltip.isNotEmpty) {
@@ -1532,31 +1543,30 @@ class _PanelTextButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IgnorePointer(
       child: Container(
-        height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: 12), // px-3
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: th.bgSurface, // bg-field
-          borderRadius: BorderRadius.circular(8), // rounded-lg
+          color: th.bgElevated,
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.white.withAlpha(26)), // white/10
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 16, color: th.textPrimary),
-              const SizedBox(width: 8), // gap-2
+              Icon(icon, size: 15, color: th.textPrimary),
+              const SizedBox(width: 8),
             ],
             Text(
               label,
-              style: const TextStyle(
-                fontSize: 12, // text-xs
-                fontWeight: FontWeight.w600, // font-semibold
-                color: Colors.white, // text-ink на поле
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: th.textPrimary,
               ),
             ),
             const SizedBox(width: 6),
-            Icon(LucideIcons.chevronDown,
-                size: 14, color: th.textMuted),
+            Icon(LucideIcons.chevronDown, size: 14, color: th.textMuted),
           ],
         ),
       ),
@@ -1669,6 +1679,7 @@ class _HomeSearchFieldState extends State<_HomeSearchField> {
         widget.state.ref.read(tProvider).tr('home.searchPlaceholder');
     return TsundokuTextField(
       controller: _controller,
+      height: 36,
       onChanged: widget.state.updateSearchQuery,
       placeholder: hint,
       prefixIcon: Padding(

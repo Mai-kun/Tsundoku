@@ -20,7 +20,6 @@ import '../../shared/i18n/index.dart';
 import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/types/enums.dart';
 import '../../shared/ui/badge.dart';
-import '../../shared/ui/button.dart';
 import '../../shared/ui/popover_menu.dart';
 import '../../shared/ui/text_field.dart';
 import '../../shared/ui/total_badge.dart';
@@ -166,13 +165,14 @@ class _FilterBarState extends ConsumerState<FilterBar> {
 
     final count = widget.counts[widget.status];
 
-    final pad = MediaQuery.sizeOf(context).width >= 640 ? 16.0 : 12.0; // p-3 sm:p-4
+    final pad = MediaQuery.sizeOf(context).width >= 640 ? 14.0 : 12.0;
 
     return Container(
-      padding: EdgeInsets.all(pad), // p-3 sm:p-4
+      padding: EdgeInsets.all(pad),
       decoration: BoxDecoration(
-        color: th.bgSurface, // bg-surface
+        color: th.bgSurface, // #12151c
         borderRadius: BorderRadius.circular(8), // rounded-lg = 8px
+        border: Border.all(color: th.borderSubtle),
       ),
       child: Row(
         children: [
@@ -293,16 +293,15 @@ class _IconButtonTrigger extends StatelessWidget {
     // Кнопка — визуал: тап должен уходить в GestureDetector поповера —
     // IgnorePointer исключает кнопку из арены жестов (🐛 #6).
     final body = IgnorePointer(
-      child: SizedBox(
-        width: 40, // size-10 (h-10) = 40px
-        height: 40,
-        child: TsundokuButton(
-          variant: ButtonVariant.secondary,
-          size: ButtonSize.lg,
-          iconOnly: true,
-          onPressed: () {},
-          child: Icon(icon, size: 18, color: th.textMuted),
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: th.bgElevated,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white.withAlpha(26)), // white/10
         ),
+        child: Icon(icon, size: 16, color: th.textMuted),
       ),
     );
     if (showTooltip && tooltip.isNotEmpty) {
@@ -332,41 +331,43 @@ class _StatusTrigger extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final body = IgnorePointer(
-      child: SizedBox(
-        height: 40, // h-10 = 40px (size="lg")
-        child: TsundokuButton(
-          variant: ButtonVariant.secondary,
-          size: ButtonSize.lg,
-          onPressed: () {},
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12, // text-xs
-                  fontWeight: FontWeight.w600, // font-semibold
-                ),
+      child: Container(
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: th.bgElevated,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white.withAlpha(26)), // white/10
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: th.textPrimary,
               ),
-              if (count != null) ...[
-                const SizedBox(width: 6),
-                TsundokuBadge(
-                  tone: BadgeTone.neutral,
-                  size: BadgeSize.xs,
-                  borderRadius: 9999, // rounded-full
-                  child: Text('$count'),
-                ),
-              ],
+            ),
+            if (count != null) ...[
               const SizedBox(width: 6),
-              Icon(
-                LucideIcons.chevronDown, // ChevronDown size={14}
-                size: 14,
-                color: th.textMuted, // text-muted
+              TsundokuBadge(
+                tone: BadgeTone.neutral,
+                size: BadgeSize.xs,
+                borderRadius: 9999, // rounded-full
+                child: Text('$count'),
               ),
             ],
-          ),
+            const SizedBox(width: 6),
+            Icon(
+              LucideIcons.chevronDown,
+              size: 14,
+              color: th.textMuted,
+            ),
+          ],
         ),
       ),
     );
@@ -423,6 +424,7 @@ class _SearchFieldState extends State<_SearchField> {
     final th = widget.th;
     return TsundokuTextField(
       controller: _controller,
+      height: 36,
       onChanged: widget.onChanged,
       placeholder: widget.hint,
       prefixIcon: Padding(

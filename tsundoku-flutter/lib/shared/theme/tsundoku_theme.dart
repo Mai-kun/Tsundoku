@@ -117,13 +117,17 @@ ThemeData buildTsundokuTheme({TsundokuTheme tokens = TsundokuTheme.obsidian}) {
     scaffoldBackgroundColor: tokens.bgCanvas,
     canvasColor: tokens.bgCanvas,
     hoverColor: tokens.bgHover,
-    splashFactory: InkSparkle.splashFactory,
+    splashFactory: NoSplash.splashFactory,
+    splashColor: Colors.transparent,
+    highlightColor: Colors.transparent,
     dividerColor: tokens.borderSubtle,
     disabledColor: tokens.textMuted,
     extensions: <ThemeExtension<dynamic>>[tokens],
 
     // `button:not(:disabled) { cursor: pointer; }` + radius-field.
     buttonTheme: const ButtonThemeData(
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(TsundokuPalette.radiusField)),
       ),
@@ -132,6 +136,20 @@ ThemeData buildTsundokuTheme({TsundokuTheme tokens = TsundokuTheme.obsidian}) {
       style: FilledButton.styleFrom(
         backgroundColor: tokens.accent,
         foregroundColor: TsundokuPalette.primaryContent,
+        splashFactory: NoSplash.splashFactory,
+        overlayColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(
+              Radius.circular(TsundokuPalette.radiusField)),
+        ),
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: tokens.accent,
+        foregroundColor: TsundokuPalette.primaryContent,
+        splashFactory: NoSplash.splashFactory,
+        overlayColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.all(
               Radius.circular(TsundokuPalette.radiusField)),
@@ -142,6 +160,8 @@ ThemeData buildTsundokuTheme({TsundokuTheme tokens = TsundokuTheme.obsidian}) {
       style: OutlinedButton.styleFrom(
         foregroundColor: tokens.textPrimary,
         side: BorderSide(color: tokens.borderStrong),
+        splashFactory: NoSplash.splashFactory,
+        overlayColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.all(
               Radius.circular(TsundokuPalette.radiusField)),
@@ -151,10 +171,18 @@ ThemeData buildTsundokuTheme({TsundokuTheme tokens = TsundokuTheme.obsidian}) {
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: tokens.accentSoft,
+        splashFactory: NoSplash.splashFactory,
+        overlayColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.all(
               Radius.circular(TsundokuPalette.radiusField)),
         ),
+      ),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        splashFactory: NoSplash.splashFactory,
+        overlayColor: Colors.transparent,
       ),
     ),
 

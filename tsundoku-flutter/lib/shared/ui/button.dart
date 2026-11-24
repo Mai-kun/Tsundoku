@@ -7,6 +7,7 @@ library;
 
 import 'package:material_ui/material_ui.dart';
 
+import '../theme/tsundoku_theme.dart';
 import '../theme/tsundoku_tokens.dart';
 
 /// `"primary" | "secondary" | "ghost" | "outline" | "danger"`.
@@ -77,7 +78,7 @@ class ButtonGeometry {
 }
 
 /// `<button>` с вариантами/размерами/loading/holdProgress-fill.
-class TsundokuButton extends StatelessWidget {
+class TsundokuButton extends StatefulWidget {
   final ButtonVariant variant;
   final ButtonSize size;
   final bool loading;
@@ -102,29 +103,41 @@ class TsundokuButton extends StatelessWidget {
   });
 
   @override
+  State<TsundokuButton> createState() => _TsundokuButtonState();
+}
+
+class _TsundokuButtonState extends State<TsundokuButton> {
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed == value) return;
+    setState(() => _pressed = value);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final th = TsundokuTheme.of(context);
-    final geometry = size == ButtonSize.icon
+    final geometry = widget.size == ButtonSize.icon
         ? ButtonGeometry.icon
-        : switch (size) {
+        : switch (widget.size) {
             ButtonSize.xs => ButtonGeometry.xs,
             ButtonSize.sm => ButtonGeometry.sm,
             ButtonSize.md => ButtonGeometry.md,
             ButtonSize.lg => ButtonGeometry.lg,
             ButtonSize.icon => ButtonGeometry.icon,
           };
-    final (:background, :text) = _variantColors(variant, th);
-    final enabled = !disabled && !loading;
+    final (:background, :text) = _variantColors(widget.variant, th);
+    final enabled = !widget.disabled && !widget.loading;
 
     Widget label = DefaultTextStyle.merge(
       style: TextStyle(
           fontSize: geometry.fontSize,
           fontWeight: FontWeight.w500,
           color: text),
-      child: child,
+      child: widget.child,
     );
 
-    if (loading) {
+    if (widget.loading) {
       label = Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -134,13 +147,13 @@ class TsundokuButton extends StatelessWidget {
             child: CircularProgressIndicator(
                 strokeWidth: 2, color: text), // LoaderCircle size-4
           ),
-          if (size != ButtonSize.icon) SizedBox(width: geometry.gap),
-          if (size != ButtonSize.icon) label,
+          if (widget.size != ButtonSize.icon) SizedBox(width: geometry.gap),
+          if (widget.size != ButtonSize.icon) label,
         ],
       );
     }
 
-    final borderSide = switch (variant) {
+    final borderSide = switch (widget.variant) {
       ButtonVariant.secondary => BorderSide(color: th.borderSubtle),
       ButtonVariant.outline => BorderSide(color: th.borderStrong),
       _ => BorderSide.none,
@@ -153,22 +166,28 @@ class TsundokuButton extends StatelessWidget {
         side: borderSide,
       ),
       child: InkWell(
-        onTap: enabled ? onPressed : null,
+        onTap: enabled ? widget.onPressed : null,
+        onTapDown: enabled ? (_) => _setPressed(true) : null,
+        onTapUp: enabled ? (_) => _setPressed(false) : null,
+        onTapCancel: enabled ? () => _setPressed(false) : null,
+        splashFactory: NoSplash.splashFactory,
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
         borderRadius: BorderRadius.circular(geometry.radius),
-        hoverColor: variant == ButtonVariant.primary
+        hoverColor: widget.variant == ButtonVariant.primary
             ? th.accentHover // hover:bg-accent-hover
             : th.bgHover, // hover:bg-hover
         child: Container(
           height: geometry.height,
           // iconOnly: квадрат w = h, p-0; иначе — паддинги sizeClasses.
-          padding: (iconOnly || size == ButtonSize.icon)
+          padding: (widget.iconOnly || widget.size == ButtonSize.icon)
               ? EdgeInsets.zero
               : geometry.padding,
           constraints: BoxConstraints(
-            minWidth: (iconOnly || size == ButtonSize.icon)
+            minWidth: (widget.iconOnly || widget.size == ButtonSize.icon)
                 ? geometry.height
                 : 0,
-            minHeight: (iconOnly || size == ButtonSize.icon)
+            minHeight: (widget.iconOnly || widget.size == ButtonSize.icon)
                 ? geometry.height
                 : 0,
           ),
@@ -178,26 +197,31 @@ class TsundokuButton extends StatelessWidget {
     );
 
     return Opacity(
-      opacity: disabled || loading ? 0.5 : 1.0, // disabled:opacity-50
-      child: Stack(
-        children: [
-          // holdProgress fill: bg-danger/30, origin-left, -z-10 под лейблом.
-          if (holdProgress != null)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(geometry.radius),
-                  child: FractionallySizedBox(
-                    alignment: Alignment.centerLeft, // origin-left
-                    widthFactor: holdProgress!.clamp(0.0, 1.0),
-                    child: Container(
-                        color: th.danger.withValues(alpha: 0.3)),
+      opacity: widget.disabled || widget.loading ? 0.5 : 1.0, // disabled:opacity-50
+      child: AnimatedScale(
+        scale: enabled && _pressed ? 0.98 : 1.0,
+        duration: const Duration(milliseconds: 90),
+        curve: TsundokuPalette.easeTap,
+        child: Stack(
+          children: [
+            // holdProgress fill: bg-danger/30, origin-left, -z-10 под лейблом.
+            if (widget.holdProgress != null)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(geometry.radius),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft, // origin-left
+                      widthFactor: widget.holdProgress!.clamp(0.0, 1.0),
+                      child: Container(
+                          color: th.danger.withValues(alpha: 0.3)),
+                    ),
                   ),
                 ),
               ),
-            ),
-          button,
-        ],
+            button,
+          ],
+        ),
       ),
     );
   }

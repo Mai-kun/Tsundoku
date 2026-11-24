@@ -187,13 +187,21 @@ class DetailHeader extends ConsumerWidget {
                       loading: translatingSynopsis,
                       disabled: translatingSynopsis,
                       onPressed: onToggleTranslate,
-                      child: Text(
-                        translatingSynopsis
-                            ? t.tr('detail.translating')
-                            : synopsisTranslated
-                                ? t.tr('detail.showOriginal')
-                                : t.tr('detail.translate'),
-                        style: TextStyle(color: th.accentSoft),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(LucideIcons.languages,
+                              size: 13, color: th.accentSoft),
+                          const SizedBox(width: 4),
+                          Text(
+                            translatingSynopsis
+                                ? t.tr('detail.translating')
+                                : synopsisTranslated
+                                    ? t.tr('detail.showOriginal')
+                                    : t.tr('detail.translate'),
+                            style: TextStyle(color: th.accentSoft),
+                          ),
+                        ],
                       ),
                     ),
                 ],
@@ -278,7 +286,7 @@ class _SynopsisText extends StatelessWidget {
             text,
             maxLines: expandable && !expanded ? 4 : null, // COLLAPSED_LINES = 4
             overflow: expandable && !expanded
-                ? TextOverflow.ellipsis
+                ? TextOverflow.clip
                 : TextOverflow.visible,
             style: TextStyle(
               fontSize: 14, // text-sm

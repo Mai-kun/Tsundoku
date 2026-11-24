@@ -464,7 +464,7 @@ String formatDate(String? value, I18nDictionary t) {
   final parsed = _tryParseDate(value);
   if (parsed == null) return t.tr('detailModal.dateEmpty');
   initializeDateFormatting(t.locale.wire, null);
-  return DateFormat.yMMMMd(t.locale.wire).format(parsed);
+  return DateFormat.yMMMd(t.locale.wire).format(parsed);
 }
 
 /// Renders only the precision the source actually provided. A source that

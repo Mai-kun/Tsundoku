@@ -358,7 +358,7 @@ class _CreatorSectionState extends ConsumerState<CreatorSection> {
                         border: Border.all(
                             color:
                                 Colors.white.withAlpha(10)), // border-white/[0.04]
-                        color: th.bgSurface, // color-field
+                        color: const Color(0xFF222836), // видимый трек коллекции
                       ),
                       child: FractionallySizedBox(
                         alignment: Alignment.centerLeft,
@@ -366,12 +366,7 @@ class _CreatorSectionState extends ConsumerState<CreatorSection> {
                         child: Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(999),
-                            gradient: LinearGradient(
-                              colors: [
-                                th.accentBright, // from-accent-bright
-                                const Color(0xFF818CF8), // to-[#818cf8]
-                              ],
-                            ),
+                            color: th.accent, // bg-accent
                           ),
                         ),
                       ),

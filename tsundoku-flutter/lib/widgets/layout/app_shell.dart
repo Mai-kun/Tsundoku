@@ -134,7 +134,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           Container(
             key: const Key('appshell-sidebar'), // data-widget="sidebar"
             width: 240, // lg:w-60
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+            padding: const EdgeInsets.fromLTRB(12, 20, 12, 12),
             decoration: BoxDecoration(
               color: th.bgSurface, // bg-surface
               border: Border(

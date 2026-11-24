@@ -664,13 +664,16 @@ class _DeleteCardButtonState extends State<_DeleteCardButton> {
 
   @override
   Widget build(BuildContext context) {
+    final show = widget.visible;
     return IgnorePointer(
-      ignoring: !widget.visible,
+      ignoring: !show,
       child: AnimatedOpacity(
-        opacity: widget.visible ? 1 : 0,
+        opacity: show ? 1.0 : 0.0,
         duration: const Duration(milliseconds: 200),
         child: MouseRegion(
-          onEnter: (_) => setState(() => _hovered = true),
+          onEnter: (_) {
+            if (show) setState(() => _hovered = true);
+          },
           onExit: (_) => setState(() => _hovered = false),
           child: GestureDetector(
             onTap: widget.onPressed,
@@ -680,14 +683,14 @@ class _DeleteCardButtonState extends State<_DeleteCardButton> {
               child: Container(
                 width: 28, // h-7 w-7
                 height: 28,
-                padding: const EdgeInsets.all(7),
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle, // rounded-full
-                  color: _hovered
+                  color: (_hovered && show)
                       ? const Color(0xFFE11D48) // hover:bg-rose-600
                       : const Color(0xCC000000), // bg-black/80
                   border: Border.all(
-                    color: _hovered
+                    color: (_hovered && show)
                         ? const Color(0x66F43F5E) // hover:border-rose-500/40
                         : Colors.white.withAlpha(15), // border-white/[0.06]
                   ),
@@ -695,7 +698,7 @@ class _DeleteCardButtonState extends State<_DeleteCardButton> {
                 child: Icon(
                   LucideIcons.trash2, // Trash2 size={14}
                   size: 14,
-                  color: _hovered
+                  color: (_hovered && show)
                       ? Colors.white // hover:text-white
                       : Colors.white.withAlpha(179), // text-white/70
                 ),

@@ -1359,13 +1359,14 @@ class _ControlPanel extends ConsumerWidget {
                 TsundokuTotalBadge(total: filteredTotal),
               const Spacer(),
               // Поиск + лимит + сортировка.
-              Expanded(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _HomeSearchField(state: state, th: th),
-                    ),
-                    const SizedBox(width: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 224, // lg:w-56
+                    child: _HomeSearchField(state: state, th: th),
+                  ),
+                  const SizedBox(width: 8),
                     // Лимит секций: role="switch".
                     Tooltip(
                       message: t.tr('home.limitTooltip'),
@@ -1423,7 +1424,6 @@ class _ControlPanel extends ConsumerWidget {
                     ),
                   ],
                 ),
-              ),
             ],
           ),
           // Чипы активных фильтров.

@@ -281,7 +281,10 @@ class _EpisodesTabState extends ConsumerState<EpisodesTab> {
     final finishEstimate = _finishEstimate(t, locale);
 
     String cleanEpisodeTitle(String title) {
-      final pattern = RegExp(t.tr('episodes.titlePrefixPattern'), caseSensitive: false);
+      final pattern = RegExp(
+        r'^(?:Episode|Ep\.?|Серия|Эпизод)\s*\d+\s*[-–—:.]\s*',
+        caseSensitive: false,
+      );
       final cleaned = title.replaceFirst(pattern, '').trim();
       return cleaned.isNotEmpty ? cleaned : title;
     }
@@ -460,7 +463,7 @@ class _EpisodesTabState extends ConsumerState<EpisodesTab> {
                                                           1
                                                   ? _kPurple
                                                       .withAlpha(128) // /50
-                                                  : _kSegmentIdle,
+                                                  : Colors.white.withAlpha(26), // bg-white/10 контрастный трек
                                           border: seg.cumulative ==
                                                   widget.seriesEpisodes
                                                       .current +
@@ -598,42 +601,48 @@ class _EpisodesTabState extends ConsumerState<EpisodesTab> {
                   border: Border(
                       top: BorderSide(color: Color(0x0DFFFFFF))), // white/5
                 ),
-                child: Wrap(
-                  spacing: 6, // gap-1.5
-                  runSpacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    const Icon(LucideIcons.clock,
-                        size: 13, color: _kPurple), // #8b7cf6
-                    Text(
-                      '${t.tr('progress.paceLabel')}:',
-                      style: TextStyle(
-                        fontSize: 12, // text-xs
-                        color: th.textMuted, // text-muted
-                      ),
-                    ),
-                    for (final p in _kPaceOptions)
-                      _PaceChip(
-                        value: p,
-                        selected: _pace == p,
-                        onTap: () => setState(() => _pace = p),
-                      ),
-                    Text(
-                      t.tr('episodes.perDay'),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: th.textMuted,
-                      ),
-                    ),
-                    if (finishEstimate != null)
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      const Icon(LucideIcons.clock,
+                          size: 13, color: _kPurple), // #8b7cf6
+                      const SizedBox(width: 6),
                       Text(
-                        '→ $finishEstimate',
-                        style: const TextStyle(
+                        '${t.tr('progress.paceLabel')}:',
+                        style: TextStyle(
                           fontSize: 12, // text-xs
-                          color: Color(0xFFCBD5E1), // text-slate-300
+                          color: th.textMuted, // text-muted
                         ),
                       ),
-                  ],
+                      const SizedBox(width: 6),
+                      for (final p in _kPaceOptions) ...[
+                        _PaceChip(
+                          value: p,
+                          selected: _pace == p,
+                          onTap: () => setState(() => _pace = p),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Text(
+                        t.tr('episodes.perDay'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: th.textMuted,
+                        ),
+                      ),
+                      if (finishEstimate != null) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          '→ $finishEstimate',
+                          style: const TextStyle(
+                            fontSize: 12, // text-xs
+                            color: Color(0xFFCBD5E1), // text-slate-300
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
           ],
@@ -927,14 +936,12 @@ class _NextUpButton extends StatelessWidget {
             children: [
               const Icon(LucideIcons.play, size: 13, color: Colors.white),
               const SizedBox(width: 6), // gap-1.5
-              Flexible(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 12, // text-xs
-                    fontWeight: FontWeight.w700, // font-bold
-                    color: Colors.white,
-                  ),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12, // text-xs
+                  fontWeight: FontWeight.w700, // font-bold
+                  color: Colors.white,
                 ),
               ),
             ],
@@ -1386,7 +1393,7 @@ class _ResetAllButton extends StatelessWidget {
 }
 
 /// Строка серии: E-бейдж, заголовок, mark-up-to, toggle-кнопка.
-class _EpisodeRowWidget extends StatelessWidget {
+class _EpisodeRowWidget extends StatefulWidget {
   final EpisodeRow episode;
   final bool watched;
   final bool next;
@@ -1422,130 +1429,150 @@ class _EpisodeRowWidget extends StatelessWidget {
   });
 
   @override
+  State<_EpisodeRowWidget> createState() => _EpisodeRowWidgetState();
+}
+
+class _EpisodeRowWidgetState extends State<_EpisodeRowWidget> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    final tooltipLabel = watched ? unwatchLabel : markWatchedLabel;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6), // space-y-1.5
-      padding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // px-3 py-2
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8), // rounded-lg
-        border: Border.all(
+    final tooltipLabel = widget.watched ? widget.unwatchLabel : widget.markWatchedLabel;
+    final th = widget.th;
+    final episode = widget.episode;
+    final watched = widget.watched;
+    final next = widget.next;
+    final busy = widget.busy;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6), // space-y-1.5
+        padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // px-3 py-2
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8), // rounded-lg
+          border: Border.all(
+            color: next
+                ? _kPurple.withAlpha(77) // border-[#8b7cf6]/30
+                : Colors.white.withAlpha(13), // border-white/5
+          ),
           color: next
-              ? _kPurple.withAlpha(77) // border-[#8b7cf6]/30
-              : Colors.white.withAlpha(13), // border-white/5
+              ? _kPurple.withAlpha(15) // bg-[#8b7cf6]/[0.06]
+              : th.bgSurface, // panel-line
         ),
-        color: next
-            ? _kPurple.withAlpha(15) // bg-[#8b7cf6]/[0.06]
-            : th.bgSurface, // panel-line
-      ),
-      child: Row(
-        children: [
-          // E-бейдж.
-          Container(
-            width: 36, // size-9
-            height: 36,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8), // rounded-lg
-              color: next
-                  ? _kPurple // bg-[#8b7cf6]
-                  : watched
-                      ? Colors.white.withAlpha(13) // bg-white/[0.05]
-                      : th.bgSurface, // color-field
-            ),
-            child: Center(
-              child: Text(
-                'E${episode.number}',
-                style: TextStyle(
-                  fontSize: 12, // text-xs
-                  fontWeight: FontWeight.w700, // font-bold
-                  color: next
-                      ? Colors.white
-                      : watched
-                          ? th.textMuted // text-muted
-                          : const Color(0xFFCBD5E1), // text-slate-300
-                  fontFeatures: [FontFeature.tabularFigures()],
+        child: Row(
+          children: [
+            // E-бейдж.
+            Container(
+              width: 36, // size-9
+              height: 36,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8), // rounded-lg
+                color: next
+                    ? _kPurple // bg-[#8b7cf6]
+                    : watched
+                        ? Colors.white.withAlpha(13) // bg-white/[0.05]
+                        : th.bgSurface, // color-field
+              ),
+              child: Center(
+                child: Text(
+                  'E${episode.number}',
+                  style: TextStyle(
+                    fontSize: 12, // text-xs
+                    fontWeight: FontWeight.w700, // font-bold
+                    color: next
+                        ? Colors.white
+                        : watched
+                            ? th.textMuted // text-muted
+                            : const Color(0xFFCBD5E1), // text-slate-300
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 12), // gap-3
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        cleanTitle(episode.title),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14, // text-sm
-                          fontWeight: FontWeight.w600, // font-semibold
-                          color: watched
-                              ? th.textMuted // text-muted
-                              : Colors.white,
-                          decoration: watched
-                              ? TextDecoration.lineThrough
-                              : TextDecoration.none,
-                        ),
-                      ),
-                    ),
-                    if (next)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2), // px-1.5 py-0.5
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                              color: _kPurple.withAlpha(102)), // /40
-                          color: _kPurple.withAlpha(38), // /15
-                        ),
+            const SizedBox(width: 12), // gap-3
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
                         child: Text(
-                          nextBadgeLabel,
-                          style: const TextStyle(
-                            fontSize: 10, // text-[10px]
-                            fontWeight: FontWeight.w700, // font-bold
-                            color: _kPurple,
+                          widget.cleanTitle(episode.title),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14, // text-sm
+                            fontWeight: FontWeight.w600, // font-semibold
+                            color: watched
+                                ? th.textMuted // text-muted без line-through
+                                : Colors.white,
+                            decoration: TextDecoration.none,
                           ),
                         ),
                       ),
-                  ],
-                ),
-                if (datesVary && episode.airDate != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2), // mt-0.5
-                    child: Text(
-                      formatDate(episode.airDate) ?? '',
-                      style: TextStyle(
-                        fontSize: 11, // text-[11px]
-                        color: th.textMuted, // text-muted
+                      if (next)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2), // px-1.5 py-0.5
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                                color: _kPurple.withAlpha(102)), // /40
+                            color: _kPurple.withAlpha(38), // /15
+                          ),
+                          child: Text(
+                            widget.nextBadgeLabel,
+                            style: const TextStyle(
+                              fontSize: 10, // text-[10px]
+                              fontWeight: FontWeight.w700, // font-bold
+                              color: _kPurple,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (widget.datesVary && episode.airDate != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2), // mt-0.5
+                      child: Text(
+                        widget.formatDate(episode.airDate) ?? '',
+                        style: TextStyle(
+                          fontSize: 11, // text-[11px]
+                          color: th.textMuted, // text-muted
+                        ),
                       ),
                     ),
+                ],
+              ),
+            ),
+            if (!watched)
+              Opacity(
+                opacity: _hovered ? 1.0 : 0.0,
+                child: IgnorePointer(
+                  ignoring: !_hovered,
+                  child: _MarkUpToButton(
+                    label: widget.markUpToLabel,
+                    disabled: busy,
+                    onTap: widget.onMarkUpTo,
                   ),
-              ],
-            ),
-          ),
-          if (!watched)
-            _MarkUpToButton(
-              label: markUpToLabel,
-              disabled: busy,
-              onTap: onMarkUpTo,
-            ),
-          const SizedBox(width: 12), // gap-3
-          // Toggle-кнопка: размер 8, emerald для просмотренных.
-          Semantics(
-            button: true,
-            label: tooltipLabel,
-            child: Tooltip(
-              message: tooltipLabel,
-              child: GestureDetector(
-                onTap: busy ? null : onToggle,
-                child: Container(
-                  width: 32, // size-8
-                  height: 32,
+                ),
+              ),
+            const SizedBox(width: 12), // gap-3
+            // Toggle-кнопка: размер 8, emerald для просмотренных.
+            Semantics(
+              button: true,
+              label: tooltipLabel,
+              child: Tooltip(
+                message: tooltipLabel,
+                child: GestureDetector(
+                  onTap: busy ? null : widget.onToggle,
+                  child: Container(
+                    width: 32, // size-8
+                    height: 32,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
@@ -1568,7 +1595,8 @@ class _EpisodeRowWidget extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 }
 

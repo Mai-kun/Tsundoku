@@ -18,6 +18,7 @@ import '../prefetch-details/external_detail_prefetch.dart';
 import '../../shared/api/api.dart';
 import '../../shared/api/jobs_client.dart';
 import '../../shared/i18n/index.dart';
+import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/types/index.dart';
 import '../../shared/ui/modal.dart';
 import '../../shared/ui/text_field.dart';
@@ -1241,7 +1242,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
 
                         // Source selector dropdown
                         SizedBox(
-                          width: 160,
+                          width: 220,
                           height: 40,
                           child: DropdownButtonFormField<String>(
                             isExpanded: true,
@@ -1435,7 +1436,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
 
     return ElevatedButton.icon(
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF6366F1),
+        backgroundColor: TsundokuTheme.of(context).accentBright,
       ),
       onPressed: isAdding ? null : () => _addResult(item),
       icon: isAdding

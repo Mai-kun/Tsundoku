@@ -275,7 +275,9 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
   String _monthName(int month, Locale locale) {
     initializeDateFormatting(locale.wire, null);
     final loc = locale.wire;
-    return DateFormat.MMMM(loc).format(DateTime(2000, month + 1, 1));
+    final raw = DateFormat.MMMM(loc).format(DateTime(2000, month + 1, 1));
+    if (raw.isEmpty) return raw;
+    return raw[0].toUpperCase() + raw.substring(1);
   }
 
   String _shortDate(DateTime date, Locale locale) {
@@ -811,13 +813,29 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Year heading + summary stats
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 12,
-            runSpacing: 8,
+          Stack(
+            clipBehavior: Clip.none,
             children: [
-              Text(
-                yg.year.toString(),
+              Positioned(
+                left: -27,
+                top: 8,
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: tokens.accent,
+                    border: Border.all(color: tokens.bgCanvas, width: 2.5),
+                  ),
+                ),
+              ),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 8,
+                children: [
+                  Text(
+                    yg.year.toString(),
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w900,
@@ -904,19 +922,38 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+        ],
+      ),
+      const SizedBox(height: 16),
 
-          if (_scale == 'months')
-            // By-month view
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: yg.months.map((mg) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+      if (_scale == 'months')
+        // By-month view
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: yg.months.map((mg) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Month label + count
+                  Stack(
+                    clipBehavior: Clip.none,
                     children: [
-                      // Month label + count
+                      Positioned(
+                        left: -25,
+                        top: 4,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: tokens.accent.withAlpha(150),
+                            border:
+                                Border.all(color: tokens.bgCanvas, width: 2),
+                          ),
+                        ),
+                      ),
                       Row(
                         children: [
                           Text(
@@ -951,7 +988,9 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
 
                       // Month cards grid
                       LayoutBuilder(

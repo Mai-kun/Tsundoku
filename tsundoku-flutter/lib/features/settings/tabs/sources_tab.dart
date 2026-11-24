@@ -1054,7 +1054,7 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
                 width: 40,
@@ -1378,7 +1378,7 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
         children: [
           // Top Row: Info & Controls
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Left: Indicator dot & Info
               Expanded(

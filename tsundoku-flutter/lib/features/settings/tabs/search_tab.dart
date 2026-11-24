@@ -451,14 +451,20 @@ class _SearchTabState extends ConsumerState<SearchTab> {
                     ),
                     const SizedBox(width: 12),
                     // Category title
-                    Text(
-                      _categoryLabel(cat, t),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+                    SizedBox(
+                      width: 140,
+                      child: Text(
+                        _categoryLabel(cat, t),
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    const Spacer(),
-                    // Drag grip hint icon
-                    Icon(LucideIcons.gripVertical, size: 16, color: theme.textMuted.withAlpha(100)),
-                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Center(
+                        child: Icon(LucideIcons.gripVertical, size: 16, color: theme.textMuted.withAlpha(100)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     // Up/Down action buttons
                     IconButton(
                       icon: const Icon(LucideIcons.chevronUp, size: 16),
@@ -906,10 +912,20 @@ class _SearchTabState extends ConsumerState<SearchTab> {
                                 ),
                                 if (disabled) ...[
                                   const SizedBox(width: 6),
-                                  TsundokuBadge(
-                                    tone: BadgeTone.neutral,
-                                    size: BadgeSize.xs,
-                                    child: Text(t.tr('settingsModal.sources.disabledBadge')),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0x2671717A), // zinc-500/15
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      t.tr('settingsModal.sources.disabledBadge'),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFFA1A1AA), // zinc-400
+                                      ),
+                                    ),
                                   ),
                                 ],
                                 const SizedBox(width: 8),

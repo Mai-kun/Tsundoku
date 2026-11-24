@@ -494,7 +494,7 @@ class _StorageTabState extends ConsumerState<StorageTab> {
                                   decoration: BoxDecoration(
                                     color: Colors.black.withAlpha(40),
                                     borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: Colors.white.withAlpha(15)),
+                                    border: Border.all(color: Colors.white.withAlpha(10)),
                                   ),
                                   child: Text(
                                     '${_searchCacheInfo!.entryCount} записей, ${_searchCacheInfo!.imageFileCount} картинок (${_formatBytes(_searchCacheInfo!.fileSizeBytes + _searchCacheInfo!.imageFileSizeBytes)})',
@@ -514,7 +514,7 @@ class _StorageTabState extends ConsumerState<StorageTab> {
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade700,
+                        backgroundColor: const Color(0xFFB92B42),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -596,12 +596,18 @@ class _StorageTabState extends ConsumerState<StorageTab> {
         border: Border.all(color: Colors.white.withAlpha(15)),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: 11, color: theme.textMuted)),
-          const SizedBox(width: 8),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: theme.textMuted)),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               path,
+              textAlign: TextAlign.end,
               style: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 11,

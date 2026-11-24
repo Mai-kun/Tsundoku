@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../entities/media/model/cover_url.dart';
 import '../entities/media/model/media_labels.dart';
+import '../features/lists/create_list_modal.dart';
 import '../shared/api/api.dart';
 import '../shared/i18n/index.dart';
 import '../shared/theme/tsundoku_tokens.dart';
@@ -377,16 +378,26 @@ class ListsViewState extends ConsumerState<ListsView> {
     return Stack(
       children: [
         content,
-        if (_modalOpen && widget.createListModalBuilder != null)
-          widget.createListModalBuilder!(
-            context,
-            _editing,
-            () => setState(() => _modalOpen = false),
-            () {
-              setState(() => _modalOpen = false);
-              _loadLists();
-            },
-          ),
+        if (_modalOpen)
+          widget.createListModalBuilder != null
+              ? widget.createListModalBuilder!(
+                  context,
+                  _editing,
+                  () => setState(() => _modalOpen = false),
+                  () {
+                    setState(() => _modalOpen = false);
+                    _loadLists();
+                  },
+                )
+              : CreateListModal(
+                  isOpen: true,
+                  list: _editing,
+                  onClose: () => setState(() => _modalOpen = false),
+                  onSaved: () {
+                    setState(() => _modalOpen = false);
+                    _loadLists();
+                  },
+                ),
         if (_importOpen && widget.importModalBuilder != null)
           widget.importModalBuilder!(
             context,
@@ -895,6 +906,8 @@ class ListsViewState extends ConsumerState<ListsView> {
       ),
       child: Center(
         child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
               width: 64,
@@ -933,17 +946,19 @@ class ListsViewState extends ConsumerState<ListsView> {
               ),
             ),
             const SizedBox(height: 24),
-            TsundokuButton(
-              variant: ButtonVariant.primary,
-              size: ButtonSize.lg,
-              onPressed: () => openCreate(),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(LucideIcons.plus, size: 16),
-                  const SizedBox(width: 8),
-                  Text(t.tr('views.listCreateFirst')),
-                ],
+            IntrinsicWidth(
+              child: TsundokuButton(
+                variant: ButtonVariant.primary,
+                size: ButtonSize.lg,
+                onPressed: () => openCreate(),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(LucideIcons.plus, size: 16),
+                    const SizedBox(width: 8),
+                    Text(t.tr('views.listCreateFirst')),
+                  ],
+                ),
               ),
             ),
           ],

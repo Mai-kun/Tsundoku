@@ -294,18 +294,18 @@ class TsundokuTheme extends ThemeExtension<TsundokuTheme> {
     chartPink: Color(0xFFB85A86),
     // --- Source Themes ---
     importMangalib: ImportSourceTheme(
-      accent: Color(0xFFC25E2E),
-      accentDim: Color.fromRGBO(194, 94, 46, 0.75),
-      border: Color.fromRGBO(194, 94, 46, 0.25),
-      surface: Color.fromRGBO(194, 94, 46, 0.08),
-      text: Color(0xFFE89A74),
+      accent: Color(0xFFE87D0D),
+      accentDim: Color.fromRGBO(232, 125, 13, 0.75),
+      border: Color.fromRGBO(232, 125, 13, 0.25),
+      surface: Color.fromRGBO(232, 125, 13, 0.08),
+      text: Color(0xFFFFA048),
     ),
     importSociallib: ImportSourceTheme(
-      accent: Color(0xFFC25E2E),
-      accentDim: Color.fromRGBO(194, 94, 46, 0.75),
-      border: Color.fromRGBO(194, 94, 46, 0.25),
-      surface: Color.fromRGBO(194, 94, 46, 0.08),
-      text: Color(0xFFE89A74),
+      accent: Color(0xFFE87D0D),
+      accentDim: Color.fromRGBO(232, 125, 13, 0.75),
+      border: Color.fromRGBO(232, 125, 13, 0.25),
+      surface: Color.fromRGBO(232, 125, 13, 0.08),
+      text: Color(0xFFFFA048),
     ),
     importTmdb: ImportSourceTheme(
       accent: Color(0xFF90CEA1),

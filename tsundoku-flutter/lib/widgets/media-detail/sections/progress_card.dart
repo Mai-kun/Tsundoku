@@ -570,7 +570,7 @@ class _ProgressCardState extends ConsumerState<ProgressCard> {
                                         ? a.fill
                                         : i == widget.value
                                             ? a.fillSoft // animate-pulse ⏭️ (тон-пульс)
-                                            : Colors.white.withAlpha(20),
+                                            : const Color(0xFF222836), // заметный трек
                                   ),
                                 ),
                               ),
@@ -581,7 +581,7 @@ class _ProgressCardState extends ConsumerState<ProgressCard> {
                           borderRadius: BorderRadius.circular(999),
                           child: Container(
                             height: 10, // h-2.5
-                            color: Colors.white.withAlpha(20), // /[0.08]
+                            color: const Color(0xFF222836), // заметный трек прогресс-бара
                             child: Align(
                               alignment: Alignment.centerLeft,
                               child: AnimatedContainer(

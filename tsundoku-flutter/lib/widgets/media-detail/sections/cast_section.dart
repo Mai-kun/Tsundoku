@@ -680,7 +680,7 @@ class _RowEntry extends StatelessWidget {
     final double photoW = large ? 64 : 52; // w-20 / size-13
 
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: large ? 10 : 8), // py-2.5 / py-2
+      padding: EdgeInsets.symmetric(vertical: large ? 6 : 4), // py-2.5 / py-2 без лишних зазоров
       child: Row(
         children: [
           if (entry.photoUrl != null && entry.photoUrl!.isNotEmpty)
@@ -826,9 +826,6 @@ class _RoleBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final th = TsundokuTheme.of(context);
-    final accentSoft = th.accentSoft;
-    final accent = th.accent;
     return Container(
       padding: const EdgeInsets.symmetric(
           horizontal: 6, vertical: 2), // px-1.5 py-0.5
@@ -836,11 +833,11 @@ class _RoleBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(6), // rounded-md
         border: Border.all(
           color: isMain
-              ? accent.withAlpha(77) // border-accent/30
+              ? const Color(0x666366F1) // border-indigo-500/40
               : Colors.white.withAlpha(26), // border-white/10
         ),
         color: isMain
-            ? accent.withAlpha(38) // bg-accent/15
+            ? const Color(0x334F46E5) // bg-accent/15 мягкий полупрозрачный индиго
             : Colors.white.withAlpha(10), // bg-white/[0.04]
       ),
       child: Text(
@@ -849,7 +846,7 @@ class _RoleBadge extends StatelessWidget {
           fontSize: 10, // text-[10px]
           fontWeight: isMain ? FontWeight.w600 : FontWeight.w500,
           color: isMain
-              ? accentSoft // text-accent-soft
+              ? const Color(0xFFA5B4FC) // text-accent-soft
               : const Color(0xFF94A3B8), // text-slate-400
         ),
       ),

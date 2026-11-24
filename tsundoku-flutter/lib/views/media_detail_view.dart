@@ -3794,6 +3794,7 @@ class _RightColumnState extends ConsumerState<_RightColumn> {
 
   @override
   Widget build(BuildContext context) {
+    final th = TsundokuTheme.of(context);
     final st = widget.state;
     final t = widget.t;
     final media = widget.media;
@@ -3875,7 +3876,7 @@ class _RightColumnState extends ConsumerState<_RightColumn> {
           },
           child: Container(
             key: ValueKey(st._activeSubTab),
-            color: const Color(0xFF0D0F14), // bg-[#0d0f14]
+            color: th.bgCanvas, // bg-[#0d0f14]
             child: _buildTabPanel(st, t, media),
           ),
         ),

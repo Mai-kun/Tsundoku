@@ -27,7 +27,7 @@ enum ImportProvider {
   goodreads('goodreads', 'Goodreads', 'G', 'Book CSV'),
   steam('steam', 'Steam', 'S', 'Games / Profile'),
   anixart('anixart', 'Anixart', 'AX', 'Экспорт аниме в CSV'),
-  custom('custom', 'CSV / JSON', '{ }', 'Универсальный JSON / CSV');
+  custom('custom', 'Свой файл', '{ }', 'Универсальный JSON / CSV');
 
   final String id;
   final String label;
@@ -829,15 +829,9 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
         const SizedBox(height: 10),
         LayoutBuilder(
           builder: (context, constraints) {
-            // Tailwind: sm: 640 (2 cols), lg: 1024 (4 cols)
-            final screenWidth = MediaQuery.sizeOf(context).width;
-            final cols = (screenWidth >= 1024 && constraints.maxWidth >= 720)
+            final cols = constraints.maxWidth >= 840
                 ? 4
-                : (screenWidth >= 640 && constraints.maxWidth >= 380)
-                    ? 2
-                    : (constraints.maxWidth >= 760
-                        ? 4
-                        : (constraints.maxWidth >= 380 ? 2 : 1));
+                : (constraints.maxWidth >= 420 ? 2 : 1);
 
             return GridView.builder(
               shrinkWrap: true,
@@ -847,7 +841,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                 crossAxisCount: cols,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
-                mainAxisExtent: 70, // 40px icon + 24px vertical padding + borders
+                mainAxisExtent: 72,
               ),
               itemBuilder: (context, index) {
                 final p = ImportProvider.values[index];
@@ -864,7 +858,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                   },
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
-                    padding: const EdgeInsets.all(12), // p-3 = 12
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                     decoration: BoxDecoration(
                       color: isSelected ? pTheme.surface : const Color(0xCC181E2C),
                       borderRadius: BorderRadius.circular(12), // rounded-xl

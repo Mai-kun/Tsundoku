@@ -554,7 +554,7 @@ const Map<String, Object> translations = {
     'sortNewFirst': { 'ru': 'Сначала новые', 'en': 'Newest first' },
     'sortOldFirst': { 'ru': 'Сначала старые', 'en': 'Oldest first' },
     'sortTitle': { 'ru': 'Порядок серий', 'en': 'Episode sort order' },
-    'titlePrefixPattern': { 'ru': '^(?:Episode|Ep\\\\.?|Серия|Эпизод)\\\\s*\\\\d+\\\\s*[-–:.]\\\\s*', 'en': '^(?:Episode|Ep\\\\.?|Серия|Эпизод)\\\\s*\\\\d+\\\\s*[-–:.]\\\\s*' },
+    'titlePrefixPattern': { 'ru': '^(?:Episode|Ep\\\\.?|Серия|Эпизод)\\\\s*\\\\d+\\\\s*[-–—:.]\\\\s*', 'en': '^(?:Episode|Ep\\\\.?|Серия|Эпизод)\\\\s*\\\\d+\\\\s*[-–—:.]\\\\s*' },
     'unmarkSeason': { 'ru': 'Снять сезон', 'en': 'Clear season' },
   },
   'errors':   {

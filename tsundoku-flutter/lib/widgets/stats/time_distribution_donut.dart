@@ -94,7 +94,7 @@ class TimeDistributionDonut extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isSm = constraints.maxWidth >= 640;
+        final isSm = constraints.maxWidth >= 480;
 
         Widget buildCategoryCard(
           ({

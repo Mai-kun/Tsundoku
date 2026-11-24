@@ -33,7 +33,6 @@ import '../../shared/ui/lightbox.dart';
 import '../../shared/ui/media_cover_placeholder.dart';
 import '../../shared/platform/platform.dart';
 import '../../shared/ui/panel.dart';
-import '../../shared/ui/text_field.dart';
 import '../../shared/ui/tsundoku_image.dart';
 import '../../shared/ui/popover_menu.dart';
 import '../../shared/ui/toast.dart';
@@ -691,7 +690,7 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
                     borderRadius:
                         BorderRadius.circular(TsundokuPalette.radiusField),
                     border: Border.all(color: th.borderSubtle),
-                    color: hovered ? th.bgHover : th.bgSurface,
+                    color: hovered ? const Color(0xFF1D2230) : const Color(0xFF151821),
                     // has-[:popover-open]:ring-2 ring-accent-soft
                     boxShadow: ctx.isOpen
                         ? [
@@ -772,8 +771,8 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
                     color: hasScore
                         ? _kAmber400.withAlpha(26) // bg-amber-400/10
                         : (hovered
-                            ? _kPanelRaised // hover:bg-panel-raised
-                            : th.bgSurface), // panel-line
+                            ? const Color(0xFF1D2230) // hover:bg-panel-raised
+                            : const Color(0xFF151821)), // panel-line
                   ),
                   child: hasScore
                       ? _ScorePop(
@@ -1029,21 +1028,19 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
     if (comboScope != null) {
       addRow(Padding(
         padding: const EdgeInsets.symmetric(vertical: 10),
-        // Svelte: dd flex-1 min-w-0 — комбо сжимается на узкой строке.
+        // Svelte: dd flex-1 min-w-0 — комбо занимает всю доступную ширину.
         child: Row(
           children: [
-            Flexible(
-              child: Text(
-                t.tr(comboScope == VoiceOptionScope.read
-                    ? 'detail.readingFormatLabel'
-                    : 'detail.voiceStudioLabel'),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 12, color: th.textMuted),
-              ),
+            Text(
+              t.tr(comboScope == VoiceOptionScope.read
+                  ? 'detail.readingFormatLabel'
+                  : 'detail.voiceStudioLabel'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: th.textMuted),
             ),
-            const SizedBox(width: 12), // gap-3
-            Flexible(
+            const SizedBox(width: 8), // gap-2
+            Expanded(
               child: _VoiceCombo(
                 state: this,
                 t: t,
@@ -1081,10 +1078,11 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
         Padding(
           padding: const EdgeInsets.only(bottom: 8), // mb-2
           child: Text(
-            t.tr('detail.historyTitle'),
+            t.tr('detail.historyTitle').toUpperCase(),
             style: const TextStyle(
               fontSize: 12, // text-xs
               fontWeight: FontWeight.w700, // font-bold
+              letterSpacing: 0.6, // tracking-wider
               color: _kSlate200, // text-slate-200 uppercase tracking-wider
             ),
           ),
@@ -1109,10 +1107,11 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
           children: [
             Expanded(
               child: Text(
-                t.tr('detail.actionsTitle'),
+                t.tr('detail.actionsTitle').toUpperCase(),
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
                   color: _kSlate200,
                 ),
               ),
@@ -1258,10 +1257,11 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Text(
-            t.tr('detail.detailsTitle'),
+            t.tr('detail.detailsTitle').toUpperCase(),
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
               color: _kSlate200,
             ),
           ),
@@ -2098,7 +2098,7 @@ class _VoiceComboState extends ConsumerState<_VoiceCombo> {
       child: Row(
         children: [
           Expanded(
-            child: TsundokuTextField(
+            child: TextField(
               controller: _controller,
               onChanged: (value) {
                 state.widget.onWatchedOnInput(value);
@@ -2110,7 +2110,17 @@ class _VoiceComboState extends ConsumerState<_VoiceCombo> {
                 state._commitComboValue(state.widget.watchedOnInput);
               },
               textAlign: TextAlign.right,
-              placeholder: t.tr('detail.watchedOnPlaceholder'),
+              style: const TextStyle(fontSize: 12, color: Colors.white),
+              decoration: InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                hintText: t.tr('detail.watchedOnPlaceholder'),
+                hintStyle: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white.withAlpha(77), // white/30
+                ),
+              ),
             ),
           ),
           TsundokuPopoverMenu<String>(
@@ -2369,27 +2379,25 @@ class _FoldToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 4), // mt-1
-      child: GestureDetector(
-        onTap: onPressed,
-        child: Semantics(
-          button: true,
-          label: label, // title/aria
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedRotation(
+      child: Tooltip(
+        message: label,
+        child: GestureDetector(
+          onTap: onPressed,
+          behavior: HitTestBehavior.opaque,
+          child: Semantics(
+            button: true,
+            label: label,
+            child: Container(
+              height: 24, // h-6 (size xs)
+              width: 24,
+              alignment: Alignment.center,
+              child: AnimatedRotation(
                 turns: expanded ? 0.5 : 0,
                 duration: const Duration(milliseconds: 200),
                 child: Icon(LucideIcons.chevronDown,
                     size: 14, color: th.textMuted),
               ),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                    fontSize: 12, color: th.textMuted), // ghost-xs текст
-              ),
-            ],
+            ),
           ),
         ),
       ),

@@ -161,8 +161,12 @@ class StatsHeroBanner extends ConsumerWidget {
                     iconBg: const Color(0x1A10B981), // bg-emerald-500/10
                     iconColor: const Color(0xFF34D399), // text-emerald-400
                     label: t.tr('stats.completed'),
-                    value:
-                        '${stats.completedTitles} / ${stats.totalTitles} (${stats.completionRatePercent}%)',
+                    value: () {
+                      final rateStr = stats.completionRatePercent % 1 == 0
+                          ? stats.completionRatePercent.toInt().toString()
+                          : stats.completionRatePercent.toStringAsFixed(1);
+                      return '${stats.completedTitles} / ${stats.totalTitles} ($rateStr%)';
+                    }(),
                   ),
                 ),
               ],

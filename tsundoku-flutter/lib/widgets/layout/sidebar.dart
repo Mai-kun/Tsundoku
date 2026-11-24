@@ -145,25 +145,32 @@ class _SidebarState extends ConsumerState<Sidebar> {
       );
     }
 
+    final List<Widget> toolsItems = [
+      // Добавить медиа — действие, не view (onCreate).
+      _NavItem(
+        view: '',
+        label: t.tr('navigation.create'),
+        icon: LucideIcons.plus,
+        iconSize: 17,
+        desktop: true,
+        active: false,
+        th: th,
+        onNavigate: (_) => widget.onCreate(),
+      ),
+      toolsItem(AppViews.stats, t.tr('navigation.stats'), LucideIcons.barChart3),
+      toolsItem(AppViews.lists, t.tr('navigation.lists'), LucideIcons.list),
+      toolsItem(AppViews.history, t.tr('navigation.history'), LucideIcons.history),
+      toolsItem(AppViews.calendar, t.tr('navigation.calendar'), LucideIcons.calendarDays),
+      toolsItem(AppViews.goals, t.tr('navigation.goals'), LucideIcons.trophy),
+      toolsItem(AppViews.settings, t.tr('navigation.settings'), LucideIcons.settings),
+    ];
+
     final Widget toolsColumn = Column(
       children: [
-        // Добавить медиа — действие, не view (onCreate).
-        _NavItem(
-          view: '',
-          label: t.tr('navigation.create'),
-          icon: LucideIcons.plus,
-          iconSize: 17,
-          desktop: true,
-          active: false,
-          th: th,
-          onNavigate: (_) => widget.onCreate(),
-        ),
-        toolsItem(AppViews.stats, t.tr('navigation.stats'), LucideIcons.barChart3),
-        toolsItem(AppViews.lists, t.tr('navigation.lists'), LucideIcons.list),
-        toolsItem(AppViews.history, t.tr('navigation.history'), LucideIcons.history),
-        toolsItem(AppViews.calendar, t.tr('navigation.calendar'), LucideIcons.calendarDays),
-        toolsItem(AppViews.goals, t.tr('navigation.goals'), LucideIcons.trophy),
-        toolsItem(AppViews.settings, t.tr('navigation.settings'), LucideIcons.settings),
+        for (int i = 0; i < toolsItems.length; i++) ...[
+          if (i > 0) const SizedBox(height: 4),
+          toolsItems[i],
+        ],
       ],
     );
 
@@ -173,12 +180,13 @@ class _SidebarState extends ConsumerState<Sidebar> {
     );
 
     if (isDesktop) {
+      final navItems = mainNavChildren(true);
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
             padding:
-                const EdgeInsets.only(left: 12, right: 12, bottom: 28), // px-3 pb-7
+                const EdgeInsets.only(left: 12, right: 12, bottom: 24), // px-3 pb-7
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -204,16 +212,15 @@ class _SidebarState extends ConsumerState<Sidebar> {
               ],
             ),
           ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: mainNavChildren(true),
-            ),
-          ),
+          for (int i = 0; i < navItems.length; i++) ...[
+            if (i > 0) const SizedBox(height: 4),
+            navItems[i],
+          ],
+          const Spacer(),
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               border: Border(
-                top: BorderSide(color: Color(0x1AFFFFFF)), // border-border
+                top: BorderSide(color: th.borderSubtle), // border-border
               ),
             ),
             padding: const EdgeInsets.only(top: 16), // pt-4

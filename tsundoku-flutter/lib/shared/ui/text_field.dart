@@ -157,6 +157,7 @@ class _TsundokuTextFieldState extends State<TsundokuTextField> {
         hintStyle: hintStyle,
         labelText: widget.labelText,
         labelStyle: hintStyle,
+        floatingLabelBehavior: FloatingLabelBehavior.always,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         prefixIcon: widget.prefixIcon,
         prefixIconConstraints: const BoxConstraints(minWidth: 32, maxHeight: 36),

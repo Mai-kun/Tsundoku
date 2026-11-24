@@ -95,15 +95,14 @@ class _StatusTriggerState extends State<_StatusTrigger> {
         height: 37.28,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          // bg-[#14171f]/95; brightness(1.25): 14→19, 17→1D, 1F→27.
           color: _hovered
-              ? const Color(0xF1191D27)
-              : const Color(0xF114171F),
+              ? Color.alphaBlend(Colors.white.withAlpha(30), colors.background)
+              : colors.background,
           shape: BoxShape.circle,
           border: Border.all(color: colors.border),
           boxShadow: [
-            // has-[:popover-open]:ring-2 ring-indigo-400/70 — сплошное кольцо
-            // 2px вокруг кнопки.
+            // has-[:popover-open]:ring-2 ring-indigo-400/70 — кольцо
+            // 2px вокруг кнопки ТОЛЬКО когда поповер открыт.
             if (isOpen)
               const BoxShadow(
                 color: Color(0xB3818CF8), // indigo-400/70 (#818cf8)

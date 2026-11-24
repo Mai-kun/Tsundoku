@@ -187,7 +187,7 @@ class _StatsViewState extends ConsumerState<StatsView> {
                       ),
                     ],
                     activeColor: currentScope == 'completed'
-                        ? const Color(0x3310B981) // emerald-500/20
+                        ? const Color(0x33228B57) // var(--success) #228b57
                         : const Color(0x33F59E0B), // amber-500/20
                     activeTextColor: currentScope == 'completed'
                         ? const Color(0xFF6EE7B7) // emerald-300

@@ -1027,7 +1027,7 @@ class _IconLinkButton extends StatelessWidget {
           child: SizedBox(
             width: 28, // h-7 w-7
             height: 28,
-            child: Icon(icon, size: 14, color: Colors.white.withAlpha(102)),
+            child: Icon(icon, size: 14, color: Colors.white.withAlpha(115)),
           ),
         ),
       ),
@@ -1066,7 +1066,7 @@ class _CrownButton extends StatelessWidget {
               size: 15,
               color: busy
                   ? Colors.white.withAlpha(51) // disabled:opacity-50
-                  : Colors.white.withAlpha(64), // text-white/25 (hover amber)
+                  : Colors.white.withAlpha(115), // text-white/45 заметная иконка
             ),
           ),
         ),
@@ -1120,9 +1120,7 @@ class _PlainIconButtonState extends State<_PlainIconButton> {
                     ? (widget.danger
                         ? const Color(0xFFF87171) // hover:text-rose-400
                         : Colors.white) // hover:text-white
-                    : (widget.danger
-                        ? Colors.white.withAlpha(77) // text-white/30
-                        : Colors.white.withAlpha(102)), // text-white/40
+                    : Colors.white.withAlpha(115), // text-white/45 заметные иконки
               ),
             ),
           ),

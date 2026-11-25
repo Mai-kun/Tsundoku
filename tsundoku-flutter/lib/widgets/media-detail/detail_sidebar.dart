@@ -1278,86 +1278,99 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
             children: [
               // Alt-тайтлы: первые два + разворот.
               if (altTitles.isNotEmpty) ...[
-                Container(
-                  padding: const EdgeInsets.only(bottom: 12), // pb-3
-                  decoration: const BoxDecoration(
-                    border: Border(
-                        bottom: BorderSide(color: Color(0x0DFFFFFF))), // /5
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        t.tr('detail.altTitlesLabel'),
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: th.textMuted),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t.tr('detail.altTitlesLabel'),
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: th.textMuted),
+                    ),
+                    const SizedBox(height: 8), // mt-2
+                    for (final alt in altTitles.take(2))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4), // space-y-1
+                        child: Text(
+                          '• $alt',
+                          style: TextStyle(
+                            fontSize: 12, // text-xs
+                            height: 20 / 12, // leading-5
+                            color: Colors.white.withAlpha(217), // white/85
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 8), // mt-2
-                      for (final alt in altTitles.take(2))
+                    if (_showAllAltTitles && altTitles.length > 2)
+                      for (final alt in altTitles.skip(2))
                         Padding(
-                          padding: const EdgeInsets.only(top: 4), // space-y-1
-                          child: Text(
-                            '• $alt',
-                            style: TextStyle(
-                              fontSize: 12, // text-xs
-                              height: 20 / 12, // leading-5
-                              color: Colors.white.withAlpha(217), // white/85
-                            ),
-                          ),
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text('• $alt',
+                              style: TextStyle(
+                                fontSize: 12,
+                                height: 20 / 12,
+                                color: Colors.white.withAlpha(217),
+                              )),
                         ),
-                      if (_showAllAltTitles && altTitles.length > 2)
-                        for (final alt in altTitles.skip(2))
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text('• $alt',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  height: 20 / 12,
-                                  color: Colors.white.withAlpha(217),
-                                )),
-                          ),
-                      if (altTitles.length > 2)
-                        _FoldToggle(
-                          th: th,
-                          expanded: _showAllAltTitles,
-                          label: _showAllAltTitles
-                              ? t.tr('detail.altTitlesLess')
-                              : t.tf('detail.altTitlesMore',
-                                  [altTitles.length - 2]),
-                          onPressed: () => setState(
-                              () => _showAllAltTitles = !_showAllAltTitles),
-                        ),
+                    if (altTitles.length > 2) ...[
+                      const SizedBox(height: 8),
+                      _FoldToggle(
+                        th: th,
+                        expanded: _showAllAltTitles,
+                        label: _showAllAltTitles
+                            ? t.tr('detail.altTitlesLess')
+                            : t.tf('detail.altTitlesMore',
+                                [altTitles.length - 2]),
+                        onPressed: () => setState(
+                            () => _showAllAltTitles = !_showAllAltTitles),
+                      ),
                     ],
-                  ),
+                  ],
                 ),
+                if (genreChips.isNotEmpty || specRows.isNotEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Color(0x0DFFFFFF),
+                    ),
+                  ),
               ],
               // Жанры: матовые чипы + спойлер хвоста.
               if (genreChips.isNotEmpty) ...[
-                Padding(
-                  padding: const EdgeInsets.only(top: 12, bottom: 12), // mt-3 pb-3
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      border: Border(
-                          bottom: BorderSide(color: Color(0x0DFFFFFF))),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t.tr('detail.genresLabel'),
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: th.textMuted),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 8), // pt-2
+                    Wrap(
+                      spacing: 6, // gap-1.5
+                      runSpacing: 6,
                       children: [
-                        Text(
-                          t.tr('detail.genresLabel'),
-                          style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: th.textMuted),
-                        ),
-                        const SizedBox(height: 8), // pt-2
-                        Wrap(
-                          spacing: 6, // gap-1.5
+                        for (final genre in genreChips.take(6))
+                          TsundokuBadge(
+                            tone: BadgeTone.neutral,
+                            size: BadgeSize.sm,
+                            child: Text(genreLabel(
+                                genre, t, ref.read(i18nProvider))),
+                          ),
+                      ],
+                    ),
+                    if (_showAllGenres && genreChips.length > 6)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6), // mt-1.5
+                        child: Wrap(
+                          spacing: 6,
                           runSpacing: 6,
                           children: [
-                            for (final genre in genreChips.take(6))
+                            for (final genre in genreChips.skip(6))
                               TsundokuBadge(
                                 tone: BadgeTone.neutral,
                                 size: BadgeSize.sm,
@@ -1366,42 +1379,34 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
                               ),
                           ],
                         ),
-                        if (_showAllGenres && genreChips.length > 6)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 6), // mt-1.5
-                            child: Wrap(
-                              spacing: 6,
-                              runSpacing: 6,
-                              children: [
-                                for (final genre in genreChips.skip(6))
-                                  TsundokuBadge(
-                                    tone: BadgeTone.neutral,
-                                    size: BadgeSize.sm,
-                                    child: Text(genreLabel(
-                                        genre, t, ref.read(i18nProvider))),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        if (genreChips.length > 6)
-                          _FoldToggle(
-                            th: th,
-                            expanded: _showAllGenres,
-                            label: _showAllGenres
-                                ? t.tr('detail.altTitlesLess')
-                                : t.tf('detail.genresMore',
-                                    [genreChips.length - 6]),
-                            onPressed: () => sidebarSetState(
-                                () => _showAllGenres = !_showAllGenres),
-                          ),
-                      ],
+                      ),
+                    if (genreChips.length > 6) ...[
+                      const SizedBox(height: 8),
+                      _FoldToggle(
+                        th: th,
+                        expanded: _showAllGenres,
+                        label: _showAllGenres
+                            ? t.tr('detail.altTitlesLess')
+                            : t.tf('detail.genresMore',
+                                [genreChips.length - 6]),
+                        onPressed: () => sidebarSetState(
+                            () => _showAllGenres = !_showAllGenres),
+                      ),
+                    ],
+                  ],
+                ),
+                if (specRows.isNotEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Color(0x0DFFFFFF),
                     ),
                   ),
-                ),
               ],
-              Padding(
-                padding: const EdgeInsets.only(top: 12), // pt-3
-                child: Column(
+              if (specRows.isNotEmpty)
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     for (var idx = 0; idx < specRows.length; idx++)
@@ -1413,7 +1418,6 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
                       ),
                   ],
                 ),
-              ),
             ],
           ),
         ),
@@ -2234,7 +2238,6 @@ class _VoiceComboState extends ConsumerState<_VoiceCombo> {
             child: TsundokuTextField(
               controller: _controller,
               focusNode: _focusNode,
-              height: 32,
               onChanged: (value) {
                 state.widget.onWatchedOnInput(value);
                 state.widget.onWatchedOnDirty();
@@ -2249,7 +2252,7 @@ class _VoiceComboState extends ConsumerState<_VoiceCombo> {
               textAlign: TextAlign.right,
               placeholder: t.tr('detail.watchedOnPlaceholder'),
               style: const TextStyle(fontSize: 12, color: Colors.white),
-              contentPadding: const EdgeInsets.only(left: 10, right: 4, top: 6, bottom: 6),
+              contentPadding: const EdgeInsets.only(left: 12, right: 4),
               suffix: Semantics(
                 button: true,
                 label: comboLabel,
@@ -2258,7 +2261,7 @@ class _VoiceComboState extends ConsumerState<_VoiceCombo> {
                   onTap: _toggleMenu,
                   child: SizedBox(
                     width: 28,
-                    height: 32,
+                    height: 36,
                     child: Center(
                       child: AnimatedRotation(
                         turns: _isOpen ? 0.5 : 0,
@@ -2502,20 +2505,18 @@ class _FoldToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 4), // mt-1
-      child: Tooltip(
-        message: label,
-        child: GestureDetector(
-          onTap: onPressed,
-          behavior: HitTestBehavior.opaque,
-          child: Semantics(
-            button: true,
-            label: label,
-            child: Container(
-              height: 24, // h-6 (size xs)
-              width: 24,
-              alignment: Alignment.center,
+    return Tooltip(
+      message: label,
+      child: GestureDetector(
+        onTap: onPressed,
+        behavior: HitTestBehavior.opaque,
+        child: Semantics(
+          button: true,
+          label: label,
+          child: SizedBox(
+            height: 16,
+            width: 24,
+            child: Center(
               child: AnimatedRotation(
                 turns: expanded ? 0.5 : 0,
                 duration: const Duration(milliseconds: 200),
@@ -2547,7 +2548,7 @@ class _SpecDlRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
-      padding: EdgeInsets.only(top: first ? 0 : 12, bottom: last ? 0 : 12),
+      padding: EdgeInsets.only(top: first ? 0 : 10, bottom: last ? 0 : 10),
       decoration: (first && last)
           ? null
           : (last

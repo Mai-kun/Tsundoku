@@ -13,9 +13,11 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../shared/api/api.dart';
 import '../../../shared/api/navigation_categories.dart';
+import '../../../shared/api/offline_mode.dart';
 import '../../../shared/i18n/index.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
 import '../../../shared/types/dtos.dart';
+import '../../../shared/types/models.dart';
 import '../../../shared/ui/badge.dart';
 import '../../../shared/ui/popover_menu.dart';
 import '../../../shared/ui/text_field.dart';
@@ -49,8 +51,9 @@ class _SearchTabState extends ConsumerState<SearchTab> {
   bool _priorityLoading = false;
   bool _prioritySaving = false;
 
-  // Sources cache for labels and disabled badges
+  // Sources cache for labels, disabled badges and offline DB availability
   List<SourceInfo> _sources = [];
+  OfflineDatabasesSummaryDto? _offlineSummary;
 
   static const List<String> _defaultCategories = [
     'anime',
@@ -91,6 +94,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
       _loadPromotedCategories(),
       _loadPriority(),
       _loadSources(),
+      _loadOfflineDatabases(),
     ]);
   }
 
@@ -317,6 +321,37 @@ class _SearchTabState extends ConsumerState<SearchTab> {
     } catch (_) {}
   }
 
+  Future<void> _loadOfflineDatabases() async {
+    try {
+      final summary = await ref.read(apiClientProvider).getOfflineDatabases();
+      if (mounted) {
+        setState(() => _offlineSummary = summary);
+      }
+    } catch (_) {}
+    try {
+      await ref.read(offlineModeProvider.notifier).init();
+    } catch (_) {}
+  }
+
+  bool get _hasOfflineDatabases {
+    if (_offlineSummary != null && _offlineSummary!.databases.isNotEmpty) {
+      return true;
+    }
+    if (ref.read(offlineModeProvider).hasDatabases) {
+      return true;
+    }
+    return _sources.any(
+      (s) => s.id.startsWith('offline:') || (s.id == 'offline' && s.isConfigured),
+    );
+  }
+
+  List<String> _visibleProviders(List<String> providers) {
+    if (_hasOfflineDatabases) return providers;
+    return providers
+        .where((id) => id != 'offline' && !id.startsWith('offline:'))
+        .toList();
+  }
+
   Future<void> _saveSourcePriority(
     String mediaType,
     List<String> nextProviders,
@@ -352,7 +387,8 @@ class _SearchTabState extends ConsumerState<SearchTab> {
 
   Future<void> _moveSourcePriority(String mediaType, int index, String direction, I18nDictionary t) async {
     if (_prioritySaving) return;
-    final currentList = [...(_sourcePriority[mediaType] ?? const <String>[])];
+    final rawList = _sourcePriority[mediaType] ?? const <String>[];
+    final currentList = _visibleProviders(rawList);
     final targetIndex = direction == 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= currentList.length) return;
 
@@ -360,7 +396,10 @@ class _SearchTabState extends ConsumerState<SearchTab> {
     currentList[index] = currentList[targetIndex];
     currentList[targetIndex] = temp;
 
-    await _saveSourcePriority(mediaType, currentList, t);
+    final hiddenOffline = _hasOfflineDatabases
+        ? const <String>[]
+        : rawList.where((id) => id == 'offline' || id.startsWith('offline:')).toList();
+    await _saveSourcePriority(mediaType, [...currentList, ...hiddenOffline], t);
   }
 
   Future<void> _reorderSourcePriority(
@@ -370,14 +409,18 @@ class _SearchTabState extends ConsumerState<SearchTab> {
     I18nDictionary t,
   ) async {
     if (_prioritySaving) return;
-    final currentList = [...(_sourcePriority[mediaType] ?? const <String>[])];
+    final rawList = _sourcePriority[mediaType] ?? const <String>[];
+    final currentList = _visibleProviders(rawList);
     if (oldIndex == newIndex || oldIndex < 0 || newIndex < 0 ||
         oldIndex >= currentList.length || newIndex >= currentList.length) {
       return;
     }
     final moved = currentList.removeAt(oldIndex);
     currentList.insert(newIndex, moved);
-    await _saveSourcePriority(mediaType, currentList, t);
+    final hiddenOffline = _hasOfflineDatabases
+        ? const <String>[]
+        : rawList.where((id) => id == 'offline' || id.startsWith('offline:')).toList();
+    await _saveSourcePriority(mediaType, [...currentList, ...hiddenOffline], t);
   }
 
   Widget _dragProxyDecorator(Widget child, int index, Animation<double> animation) {
@@ -419,6 +462,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
       'openlibrary' => 'Open Library',
       'sociallib' => 'SocialLib',
       'simkl' => 'Simkl',
+      'offline' => 'Offline Database',
       _ => provId,
     };
   }
@@ -433,6 +477,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
     final t = ref.watch(tProvider);
     final theme = TsundokuTheme.of(context);
     final promoted = ref.watch(navigationCategoriesProvider);
+    ref.watch(offlineModeProvider);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -877,8 +922,10 @@ class _SearchTabState extends ConsumerState<SearchTab> {
   }
 
   Widget _buildSourcePrioritySection(I18nDictionary t, TsundokuTheme theme) {
-    final priorityEntries =
-        _sourcePriority.entries.where((e) => e.value.length > 1).toList();
+    final priorityEntries = _sourcePriority.entries
+        .map((e) => MapEntry(e.key, _visibleProviders(e.value)))
+        .where((e) => e.value.length > 1)
+        .toList();
     final isTwoColumns = MediaQuery.sizeOf(context).width >= 1024;
 
     return Container(

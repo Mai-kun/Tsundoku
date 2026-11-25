@@ -11,6 +11,13 @@ import 'package:tsundoku_flutter/shared/theme/tsundoku_tokens.dart';
 
 class _CapturingAdapter implements HttpClientAdapter {
   final List<RequestOptions> requests = [];
+  final bool includeOfflineInPriority;
+  final List<Map<String, dynamic>> offlineDatabases;
+
+  _CapturingAdapter({
+    this.includeOfflineInPriority = false,
+    this.offlineDatabases = const [],
+  });
 
   @override
   Future<ResponseBody> fetch(
@@ -76,8 +83,34 @@ class _CapturingAdapter implements HttpClientAdapter {
       }
       return ResponseBody.fromString(
         jsonEncode({
-          'anime': ['shikimori', 'anilist', 'mal'],
+          'anime': includeOfflineInPriority
+              ? ['shikimori', 'offline', 'anilist', 'mal']
+              : ['shikimori', 'anilist', 'mal'],
           'manga': ['mangalib', 'anilist'],
+        }),
+        200,
+        headers: {Headers.contentTypeHeader: ['application/json']},
+      );
+    }
+
+    if (path.contains('/api/settings/offline-databases')) {
+      return ResponseBody.fromString(
+        jsonEncode({
+          'databases': offlineDatabases,
+          'totalIndexedTitles': offlineDatabases.isEmpty ? 0 : 1200,
+          'offlineDirectoryPath': '/data/offline',
+          'pendingDumps': <String>[],
+        }),
+        200,
+        headers: {Headers.contentTypeHeader: ['application/json']},
+      );
+    }
+
+    if (path.contains('/api/settings/offline-mode')) {
+      return ResponseBody.fromString(
+        jsonEncode({
+          'offlineMode': false,
+          'hasDatabases': offlineDatabases.isNotEmpty,
         }),
         200,
         headers: {Headers.contentTypeHeader: ['application/json']},
@@ -249,5 +282,45 @@ void main() {
     final prioMap = prioPut.data as Map;
     expect((prioMap['anime'] as List)[0], 'anilist');
     expect((prioMap['anime'] as List)[1], 'shikimori');
+  });
+
+  testWidgets('SearchTab hides Offline Database from source priority when no offline databases exist', (tester) async {
+    final adapter = _CapturingAdapter(
+      includeOfflineInPriority: true,
+      offlineDatabases: const [],
+    );
+    await tester.binding.setSurfaceSize(const Size(1440, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(_buildSubject(adapter: adapter));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Shikimori'), findsOneWidget);
+    expect(find.text('Offline Database'), findsNothing);
+    expect(find.text('offline'), findsNothing);
+  });
+
+  testWidgets('SearchTab shows Offline Database in source priority when offline databases exist', (tester) async {
+    final adapter = _CapturingAdapter(
+      includeOfflineInPriority: true,
+      offlineDatabases: const [
+        {
+          'name': 'Anime Offline',
+          'fileName': 'anime.db',
+          'type': 'anime',
+          'totalTitles': 1200,
+          'fileSizeBytes': 1024,
+          'lastModified': '2026-01-01T00:00:00Z',
+          'isActive': true,
+        },
+      ],
+    );
+    await tester.binding.setSurfaceSize(const Size(1440, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(_buildSubject(adapter: adapter));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Offline Database'), findsOneWidget);
   });
 }

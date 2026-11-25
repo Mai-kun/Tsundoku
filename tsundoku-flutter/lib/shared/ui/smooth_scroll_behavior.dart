@@ -15,8 +15,8 @@ const double kFastSpinMaxBoost = 2.1;
 /// Окно детекции быстрого последовательного вращения колеса в мс.
 const int kFastSpinWindowMs = 85;
 
-/// Длительность анимации доводки скролла в мс (кривая Chromium EaseOutCubic).
-const int kScrollDurationMs = 155;
+/// Угловая частота (рад/с) критически демпфированной пружины скролла колесом.
+const double kWheelSpringOmega = 20.0;
 
 /// Глобальный [ScrollBehavior] приложения.
 ///
@@ -33,7 +33,8 @@ class TsundokuSmoothScrollBehavior extends MaterialScrollBehavior {
     Widget child,
     ScrollableDetails details,
   ) {
-    final Widget wrapped = axisDirectionToAxis(details.direction) == Axis.vertical
+    final Widget wrapped =
+        axisDirectionToAxis(details.direction) == Axis.vertical
         ? _ScrollableAnchor(
             scrollableContext: context,
             details: details,
@@ -41,6 +42,167 @@ class TsundokuSmoothScrollBehavior extends MaterialScrollBehavior {
           )
         : child;
     return super.buildOverscrollIndicator(context, wrapped, details);
+  }
+}
+
+/// Активность плавного скролла колёсиком мыши на 144 Гц тикере.
+///
+/// Управляется через [ScrollPosition.beginActivity] и обновляет позицию
+/// напрямую через [ScrollActivityDelegate.setPixels], не вызывая на каждом
+/// кадре `jumpTo()` (`goIdle` -> `didEndScroll` -> `goBallistic`).
+///
+/// Пока [shouldIgnorePointer] равен `true`, [Scrollable] включает
+/// `IgnorePointer` над [Viewport], отключая лишние hover-ребилды карточек
+/// под курсором во время прокрутки.
+class SmoothWheelScrollActivity extends ScrollActivity {
+  SmoothWheelScrollActivity(
+    super.delegate, {
+    required TickerProvider vsync,
+    required double initialPixels,
+    required this._targetPixels,
+    double initialVelocity = 0.0,
+    this._omega = kWheelSpringOmega,
+    this._onDisposed,
+  }) : _currentPixels = initialPixels,
+       _currentVelocity = initialVelocity {
+    _ticker = vsync.createTicker(_onTick)..start();
+  }
+
+  final double _omega;
+  final VoidCallback? _onDisposed;
+  late final Ticker _ticker;
+
+  double _currentPixels;
+  double _targetPixels;
+  double _currentVelocity;
+  bool _hasFirstTick = false;
+  int _lastElapsedMicros = 0;
+  bool _disposed = false;
+
+  /// Целевая позиция скролла в логических пикселях.
+  double get targetPixels => _targetPixels;
+
+  /// Была ли активность уже завершена и освобождена.
+  bool get isDisposed => _disposed;
+
+  /// Добавляет дельту к текущей цели без перезапуска [ScrollActivity]
+  /// и с сохранением текущей позиции и скорости.
+  void addDelta(double delta) {
+    if (_disposed || delta == 0.0) return;
+    double nextTarget = _targetPixels + delta;
+    final ScrollActivityDelegate d = delegate;
+    if (d is ScrollPosition) {
+      final ScrollPosition pos = d as ScrollPosition;
+      if (pos.hasContentDimensions) {
+        nextTarget = nextTarget.clamp(pos.minScrollExtent, pos.maxScrollExtent);
+      }
+    }
+    _targetPixels = nextTarget;
+  }
+
+  @override
+  bool get isScrolling => true;
+
+  @override
+  bool get shouldIgnorePointer => true;
+
+  @override
+  double get velocity => _currentVelocity;
+
+  @override
+  void resetActivity() {
+    delegate.goBallistic(velocity);
+  }
+
+  @override
+  void dispatchOverscrollNotification(
+    ScrollMetrics metrics,
+    BuildContext context,
+    double overscroll,
+  ) {
+    OverscrollNotification(
+      metrics: metrics,
+      context: context,
+      overscroll: overscroll,
+      velocity: velocity,
+    ).dispatch(context);
+  }
+
+  void _onTick(Duration elapsed) {
+    if (_disposed) return;
+
+    final ScrollActivityDelegate d = delegate;
+    final ScrollPosition? pos = d is ScrollPosition ? d as ScrollPosition : null;
+    if (pos != null) {
+      final ScrollContext ctx = pos.context;
+      if (ctx is ScrollableState && !ctx.mounted) {
+        dispose();
+        return;
+      }
+      if (!pos.hasPixels || !pos.hasContentDimensions) {
+        d.goIdle();
+        return;
+      }
+      if ((pos.pixels - _currentPixels).abs() > 0.01) {
+        _currentPixels = pos.pixels;
+      }
+      _targetPixels =
+          _targetPixels.clamp(pos.minScrollExtent, pos.maxScrollExtent);
+    }
+
+    final int elapsedMicros = elapsed.inMicroseconds;
+    final double dt;
+    if (!_hasFirstTick) {
+      _hasFirstTick = true;
+      _lastElapsedMicros = elapsedMicros;
+      dt = elapsedMicros > 0
+          ? (elapsedMicros / 1000000.0).clamp(0.001, 0.05)
+          : (1.0 / 120.0);
+    } else {
+      final int deltaMicros = elapsedMicros - _lastElapsedMicros;
+      _lastElapsedMicros = elapsedMicros;
+      if (deltaMicros <= 0) return;
+      dt = (deltaMicros / 1000000.0).clamp(0.001, 0.05);
+    }
+
+    // Точное аналитическое решение критически демпфированной пружины
+    // (C1-непрерывность позиции и скорости при любом ретаргетинге и FPS).
+    final double y0 = _currentPixels - _targetPixels;
+    final double c2 = _currentVelocity + _omega * y0;
+    final double decay = math.exp(-_omega * dt);
+    final double nextY = (y0 + c2 * dt) * decay;
+    final double nextPixels = _targetPixels + nextY;
+    final double nextVelocity = (c2 - _omega * (y0 + c2 * dt)) * decay;
+
+    if ((_targetPixels - nextPixels).abs() < 0.25 &&
+        nextVelocity.abs() < 25.0) {
+      _currentPixels = _targetPixels;
+      _currentVelocity = 0.0;
+      if (pos == null || pos.pixels != _targetPixels) {
+        d.setPixels(_targetPixels);
+      }
+      if (!_disposed) {
+        d.goIdle();
+      }
+      return;
+    }
+
+    _currentPixels = nextPixels;
+    _currentVelocity = nextVelocity;
+    final double overscroll = d.setPixels(nextPixels);
+    if (!_disposed && overscroll.abs() > 0.001) {
+      _currentVelocity = 0.0;
+      d.goIdle();
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _ticker.dispose();
+    _onDisposed?.call();
+    super.dispose();
   }
 }
 
@@ -58,10 +220,7 @@ class TsundokuSmoothScrollBehavior extends MaterialScrollBehavior {
 /// списки и списки, уже достигшие края по направлению скролла, пропускаются
 /// без перехвата.
 class TsundokuSmoothWheelInterceptor extends SingleChildRenderObjectWidget {
-  const TsundokuSmoothWheelInterceptor({
-    super.key,
-    required super.child,
-  });
+  const TsundokuSmoothWheelInterceptor({super.key, required super.child});
 
   /// Удобный builder для передачи в `MaterialApp.builder`.
   static Widget builder(BuildContext context, Widget? child) {
@@ -92,28 +251,11 @@ class _SmoothWheelHitTestEntry extends BoxHitTestEntry {
   _SmoothWheelHitTestEntry(super.target, super.localPosition);
 }
 
-class _GlideState {
-  double startPixels;
-  double currentPixels;
-  double targetPixels;
-  double animStartTimeMs;
-  double? lastWrittenPixels;
-
-  _GlideState({
-    required this.startPixels,
-    required this.currentPixels,
-    required this.targetPixels,
-    required this.animStartTimeMs,
-    this.lastWrittenPixels,
-  });
-}
-
 class _RenderSmoothWheelInterceptor extends RenderProxyBox {
-  late final Ticker _ticker = Ticker(_onTick);
   late final Stopwatch _clock =
       GestureBinding.instance.samplingClock.stopwatch()..start();
-  final Map<ScrollPosition, _GlideState> _activeGlides =
-      <ScrollPosition, _GlideState>{};
+  final Map<ScrollPosition, SmoothWheelScrollActivity> _activeActivities =
+      <ScrollPosition, SmoothWheelScrollActivity>{};
 
   ScrollPosition? _lastWheelPosition;
   double? _lastWheelTimeMs;
@@ -122,15 +264,17 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
 
   double get _nowMs => _clock.elapsedMicroseconds / 1000.0;
 
-  static double _easeOutCubic(double t) {
-    final double clamped = t.clamp(0.0, 1.0);
-    return 1.0 - math.pow(1.0 - clamped, 3).toDouble();
-  }
-
   @override
   void dispose() {
-    _ticker.dispose();
-    _activeGlides.clear();
+    for (final SmoothWheelScrollActivity activity
+        in _activeActivities.values.toList()) {
+      if (!activity.isDisposed &&
+          activity.delegate is ScrollPosition &&
+          _isPositionMounted(activity.delegate as ScrollPosition)) {
+        activity.delegate.goIdle();
+      }
+    }
+    _activeActivities.clear();
     _lastWheelPosition = null;
     _lastWheelTimeMs = null;
     _lastWheelDirection = 0;
@@ -144,8 +288,10 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
       return false;
     }
     // Сначала добавляем себя (индекс 0 в result.path), затем обходим детей.
-    final _SmoothWheelHitTestEntry entry =
-        _SmoothWheelHitTestEntry(this, position);
+    final _SmoothWheelHitTestEntry entry = _SmoothWheelHitTestEntry(
+      this,
+      position,
+    );
     result.add(entry);
     final bool hitChildren = hitTestChildren(result, position: position);
     entry.candidates = _collectCandidates(result.path, after: entry);
@@ -169,30 +315,39 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
       }
 
       final HitTestTarget target = item.target;
-      if (target is _RenderScrollableAnchor) {
-        final ScrollPosition? pos = target.resolvePosition();
-        if (pos != null &&
-            axisDirectionToAxis(target.details.direction) == Axis.vertical &&
-            seen.add(pos)) {
-          candidates.add(
-            _ScrollableCandidate(
-              position: pos,
-              axisDirection: target.details.direction,
-            ),
-          );
+      if (target is! RenderObject) continue;
+
+      // Поднимаемся вверх по дереву от каждого hit-test узла, чтобы гарантированно
+      // находить ближайший _RenderScrollableAnchor / RenderViewportBase даже при
+      // наведении на вложенные картинки, текст, бейджи и кнопки карточек.
+      RenderObject? node = target;
+      while (node != null && !identical(node, this)) {
+        if (node is _RenderScrollableAnchor) {
+          final ScrollPosition? pos = node.resolvePosition();
+          if (pos != null &&
+              axisDirectionToAxis(node.details.direction) == Axis.vertical &&
+              seen.add(pos)) {
+            candidates.add(
+              _ScrollableCandidate(
+                position: pos,
+                axisDirection: node.details.direction,
+              ),
+            );
+          }
+        } else if (node is RenderViewportBase) {
+          final ViewportOffset offset = node.offset;
+          if (node.axis == Axis.vertical &&
+              offset is ScrollPosition &&
+              seen.add(offset)) {
+            candidates.add(
+              _ScrollableCandidate(
+                position: offset,
+                axisDirection: node.axisDirection,
+              ),
+            );
+          }
         }
-      } else if (target is RenderViewportBase) {
-        final ViewportOffset offset = target.offset;
-        if (target.axis == Axis.vertical &&
-            offset is ScrollPosition &&
-            seen.add(offset)) {
-          candidates.add(
-            _ScrollableCandidate(
-              position: offset,
-              axisDirection: target.axisDirection,
-            ),
-          );
-        }
+        node = node.parent;
       }
     }
     return candidates;
@@ -206,10 +361,7 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
     return position.hasPixels && position.hasContentDimensions;
   }
 
-  static double _effectiveDelta(
-    _ScrollableCandidate candidate,
-    double rawDy,
-  ) {
+  static double _effectiveDelta(_ScrollableCandidate candidate, double rawDy) {
     return axisDirectionIsReversed(candidate.axisDirection) ? -rawDy : rawDy;
   }
 
@@ -229,6 +381,7 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
   ) {
     for (final _ScrollableCandidate candidate in candidates) {
       final ScrollPosition position = candidate.position;
+      if (position is! ScrollActivityDelegate) continue;
       if (!_isPositionMounted(position)) continue;
       if (!position.physics.shouldAcceptUserOffset(position)) continue;
       final double delta = _effectiveDelta(candidate, rawDy);
@@ -255,15 +408,11 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
     );
     if (candidate == null) return;
 
-    GestureBinding.instance.pointerSignalResolver.register(
-      event,
-      (PointerSignalEvent rawEvent) {
-        _handleResolvedPointerScroll(
-          rawEvent as PointerScrollEvent,
-          candidate,
-        );
-      },
-    );
+    GestureBinding.instance.pointerSignalResolver.register(event, (
+      PointerSignalEvent rawEvent,
+    ) {
+      _handleResolvedPointerScroll(rawEvent as PointerScrollEvent, candidate);
+    });
   }
 
   void _handleResolvedPointerScroll(
@@ -271,6 +420,7 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
     _ScrollableCandidate candidate,
   ) {
     final ScrollPosition position = candidate.position;
+    if (position is! ScrollActivityDelegate) return;
     if (!_isPositionMounted(position)) return;
 
     final double rawDelta = _effectiveDelta(candidate, event.scrollDelta.dy);
@@ -293,127 +443,36 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
     _lastWheelDirection = direction;
 
     final double effectiveDelta = rawDelta * kWheelStepMultiplier * _spinBoost;
+    event.respond(allowPlatformDefault: false);
 
-    _GlideState? state = _activeGlides[position];
-    // Если скролл сдвинули извне (drag скроллбара / внешний jumpTo),
-    // сбрасываем прошлое накопление и стартуем от фактической позиции.
-    if (state != null &&
-        state.lastWrittenPixels != null &&
-        (position.pixels - state.lastWrittenPixels!).abs() > 2.0) {
-      _activeGlides.remove(position);
-      state = null;
+    final SmoothWheelScrollActivity? active = _activeActivities[position];
+    if (active != null && !active.isDisposed) {
+      active.addDelta(effectiveDelta);
+      return;
     }
 
-    if (state != null) {
-      // Обновляем текущую мгновенную позицию по кривой до nowMs перед retargeting'ом,
-      // чтобы избежать скачка назад или рывка при смене цели на лету.
-      final double progress = kScrollDurationMs <= 0
-          ? 1.0
-          : ((nowMs - state.animStartTimeMs) / kScrollDurationMs)
-              .clamp(0.0, 1.0);
-      final double eased = _easeOutCubic(progress);
-      state.currentPixels = (state.startPixels +
-              (state.targetPixels - state.startPixels) * eased)
-          .clamp(position.minScrollExtent, position.maxScrollExtent);
-    } else {
-      state = _GlideState(
-        startPixels: position.pixels,
-        currentPixels: position.pixels,
-        targetPixels: position.pixels,
-        animStartTimeMs: nowMs,
-        lastWrittenPixels: position.pixels,
-      );
-    }
-
-    state.startPixels = state.currentPixels;
-    state.targetPixels = (state.targetPixels + effectiveDelta).clamp(
+    final double targetPixels = (position.pixels + effectiveDelta).clamp(
       position.minScrollExtent,
       position.maxScrollExtent,
     );
-    state.animStartTimeMs = nowMs;
-
-    event.respond(allowPlatformDefault: false);
-
-    if ((state.targetPixels - state.currentPixels).abs() < 0.05 &&
-        !_activeGlides.containsKey(position)) {
+    if ((targetPixels - position.pixels).abs() < 0.25) {
       return;
     }
 
-    _activeGlides[position] = state;
-    if (!_ticker.isActive) {
-      _ticker.start();
-    }
-  }
-
-  void _onTick(Duration elapsed) {
-    if (!attached || _activeGlides.isEmpty) {
-      _stopTicker();
-      return;
-    }
-
-    final double nowMs = _nowMs;
-    final List<ScrollPosition> toRemove = <ScrollPosition>[];
-
-    for (final MapEntry<ScrollPosition, _GlideState> entry
-        in _activeGlides.entries.toList()) {
-      final ScrollPosition position = entry.key;
-      final _GlideState state = entry.value;
-
-      if (!_isPositionMounted(position)) {
-        toRemove.add(position);
-        continue;
-      }
-
-      // Ручное перетаскивание скроллбара или внешний jumpTo (> 2px).
-      if (state.lastWrittenPixels != null &&
-          (position.pixels - state.lastWrittenPixels!).abs() > 2.0) {
-        toRemove.add(position);
-        continue;
-      }
-
-      final double clampedTarget = state.targetPixels.clamp(
-        position.minScrollExtent,
-        position.maxScrollExtent,
-      );
-      state.targetPixels = clampedTarget;
-
-      // Детерминированная кривая Chromium EaseOutCubic: мгновенный чёткий отклик
-      // в t = 0 без фазовой задержки и плавный выкат в t = 1.0.
-      final double t = kScrollDurationMs <= 0
-          ? 1.0
-          : ((nowMs - state.animStartTimeMs) / kScrollDurationMs)
-              .clamp(0.0, 1.0);
-      final double eased = _easeOutCubic(t);
-      final double nextPixels = (state.startPixels +
-              (clampedTarget - state.startPixels) * eased)
-          .clamp(position.minScrollExtent, position.maxScrollExtent);
-
-      state.currentPixels = nextPixels;
-      state.lastWrittenPixels = nextPixels;
-      if (position.pixels != nextPixels) {
-        position.jumpTo(nextPixels);
-      }
-
-      if (t >= 1.0) {
-        if (position.pixels != clampedTarget) {
-          position.jumpTo(clampedTarget);
+    late final SmoothWheelScrollActivity activity;
+    activity = SmoothWheelScrollActivity(
+      position as ScrollActivityDelegate,
+      vsync: position.context.vsync,
+      initialPixels: position.pixels,
+      targetPixels: targetPixels,
+      onDisposed: () {
+        if (identical(_activeActivities[position], activity)) {
+          _activeActivities.remove(position);
         }
-        toRemove.add(position);
-      }
-    }
-
-    for (final ScrollPosition pos in toRemove) {
-      _activeGlides.remove(pos);
-    }
-    if (_activeGlides.isEmpty) {
-      _stopTicker();
-    }
-  }
-
-  void _stopTicker() {
-    if (_ticker.isActive) {
-      _ticker.stop();
-    }
+      },
+    );
+    _activeActivities[position] = activity;
+    position.beginActivity(activity);
   }
 }
 

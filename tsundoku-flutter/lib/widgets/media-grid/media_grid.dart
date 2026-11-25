@@ -278,9 +278,10 @@ class MediaGrid extends ConsumerWidget {
       delegate: SliverChildBuilderDelegate(
         (context, index) {
           final item = items[index];
-          return _card(ref, item, ref.watch(tProvider));
+          return _card(ref, item, t);
         },
         childCount: items.length,
+        addRepaintBoundaries: true,
         // Ключи карточек 1-в-1 с {#each items (item.id)} — keyed each.
         findChildIndexCallback: (key) {
           final valueKey = key as ValueKey<String>?;

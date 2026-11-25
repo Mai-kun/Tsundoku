@@ -74,6 +74,8 @@ class TsundokuImage extends ConsumerWidget {
   final Widget? errorWidget;
   final Widget? placeholder;
   final bool forceRefresh;
+  final int? cacheWidth;
+  final bool fullSize;
 
   const TsundokuImage({
     super.key,
@@ -88,7 +90,22 @@ class TsundokuImage extends ConsumerWidget {
     this.errorWidget,
     this.placeholder,
     this.forceRefresh = false,
+    this.cacheWidth,
+    this.fullSize = false,
   });
+
+  int? _resolveCacheWidth(BuildContext context) {
+    if (fullSize) return null;
+    if (cacheWidth != null) {
+      return cacheWidth! > 0 ? cacheWidth : null;
+    }
+    final double? w = width;
+    if (w != null && w.isFinite && w > 0) {
+      final double dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1.0;
+      return (w * dpr).round().clamp(1, 1920);
+    }
+    return null;
+  }
 
   Widget _defaultFallback(BuildContext context) {
     if (errorWidget != null) return errorWidget!;
@@ -128,6 +145,7 @@ class TsundokuImage extends ConsumerWidget {
       resolvedUrl,
       width: width,
       height: height,
+      cacheWidth: _resolveCacheWidth(context),
       fit: fit,
       alignment: alignment,
       semanticLabel: semanticLabel,

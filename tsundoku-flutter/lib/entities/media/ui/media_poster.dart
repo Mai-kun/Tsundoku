@@ -38,6 +38,12 @@ class MediaPoster extends ConsumerStatefulWidget {
   /// the review tab.
   final bool needsReview;
 
+  /// Optional decode width cap for grid thumbnails to avoid scaling huge covers.
+  final int? cacheWidth;
+
+  /// Request full-resolution decoding when true.
+  final bool fullSize;
+
   const MediaPoster({
     super.key,
     required this.src,
@@ -46,6 +52,8 @@ class MediaPoster extends ConsumerStatefulWidget {
     this.actions,
     this.syncing = false,
     this.needsReview = false,
+    this.cacheWidth,
+    this.fullSize = false,
   });
 
   @override
@@ -82,6 +90,8 @@ class _MediaPosterState extends ConsumerState<MediaPoster> {
           TsundokuImage(
             src: src,
             fit: BoxFit.cover, // object-cover
+            cacheWidth: widget.cacheWidth,
+            fullSize: widget.fullSize,
             semanticLabel: widget.alt, // alt
             errorBuilder: (context, error, stackTrace) {
               // onerror: пометить сломанной и показать плейсхолдер.

@@ -116,5 +116,39 @@ void main() {
 
       expect(find.text('Failed to load'), findsOneWidget);
     });
+
+    testWidgets('applies explicit cacheWidth unless fullSize is true', (tester) async {
+      final container = ProviderContainer(overrides: [
+        apiBaseUrlProvider.overrideWith(_TestBaseUrl.new),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: Column(
+              children: [
+                TsundokuImage(
+                  src: '/media-assets/item1/cover.webp',
+                  cacheWidth: 480,
+                ),
+                TsundokuImage(
+                  src: '/media-assets/item2/cover.webp',
+                  cacheWidth: 480,
+                  fullSize: true,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final images = tester.widgetList<Image>(find.byType(Image)).toList();
+      expect(images, hasLength(2));
+      expect(images[0].image, isA<ResizeImage>());
+      expect((images[0].image as ResizeImage).width, 480);
+      expect(images[1].image, isA<NetworkImage>());
+    });
   });
 }

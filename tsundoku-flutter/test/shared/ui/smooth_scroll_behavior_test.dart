@@ -17,7 +17,7 @@ Future<void> _sendWheel(
 
 void main() {
   testWidgets(
-      'TsundokuSmoothWheelInterceptor uses EaseOutCubic with immediate start and kWheelStepMultiplier',
+      'TsundokuSmoothWheelInterceptor uses SmoothWheelScrollActivity with critically damped spring and kWheelStepMultiplier',
       (tester) async {
     final controller = ScrollController();
     addTearDown(controller.dispose);
@@ -52,33 +52,183 @@ void main() {
       scrollDelta: const Offset(0, rawDelta),
     );
 
-    // За первые 16 мс EaseOutCubic делает уверенный старт без фазовой задержки.
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 16));
-    final double offset16 = controller.offset;
-    expect(offset16, greaterThan(0.0));
-    expect(offset16, lessThan(expectedTarget));
+    // Активность переключилась на SmoothWheelScrollActivity сразу при тике колеса.
+    final ScrollPosition position = controller.position;
+    expect(position.activity, isA<SmoothWheelScrollActivity>());
+    expect(position.activity!.isScrolling, isTrue);
+    expect(position.activity!.shouldIgnorePointer, isTrue);
 
-    // Следующие 16 мс: скорость монотонно затухает (step16to32 < step0to16),
-    // как в детерминированной кривой Chromium EaseOutCubic.
-    await tester.pump(const Duration(milliseconds: 16));
-    final double offset32 = controller.offset;
-    final double step16to32 = offset32 - offset16;
-    expect(step16to32, greaterThan(0.0));
-    expect(step16to32, lessThan(offset16));
-
-    // На половине длительности (~77 мс от старта) скролл уже прошёл > 80% пути.
-    await tester.pump(const Duration(milliseconds: 45));
-    final double offset77 = controller.offset;
-    expect(offset77, greaterThan(expectedTarget * 0.8));
-    expect(offset77, lessThan(expectedTarget));
-
-    // По истечении kScrollDurationMs (155 мс) анимация точно завершена.
-    await tester.pump(Duration(milliseconds: kScrollDurationMs - 77));
-    expect(controller.offset, closeTo(expectedTarget, 0.25));
+    // Плавный старт без ступеньки, монотонно приближается к цели без перелёта.
+    double prev = 0.0;
+    for (int i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      final double current = controller.offset;
+      expect(current, greaterThan(prev));
+      expect(current, lessThanOrEqualTo(expectedTarget));
+      if (position.activity is SmoothWheelScrollActivity) {
+        expect(position.activity!.isScrolling, isTrue);
+        expect(position.activity!.shouldIgnorePointer, isTrue);
+      }
+      prev = current;
+    }
 
     await tester.pumpAndSettle();
-    expect(controller.offset, closeTo(expectedTarget, 0.01));
+    expect(controller.offset, closeTo(expectedTarget, 0.25));
+    expect(position.activity!.isScrolling, isFalse);
+    expect(position.activity!.shouldIgnorePointer, isFalse);
+  });
+
+  testWidgets(
+      'SmoothWheelScrollActivity sends ScrollStartNotification once, ScrollEndNotification once, keeps shouldIgnorePointer=true, and suppresses card MouseRegion hover during scroll',
+      (tester) async {
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+
+    int startNotifications = 0;
+    int updateNotifications = 0;
+    int endNotifications = 0;
+    int hoverEnters = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        scrollBehavior: const TsundokuSmoothScrollBehavior(),
+        builder: TsundokuSmoothWheelInterceptor.builder,
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 300,
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                if (notification is ScrollStartNotification) {
+                  startNotifications++;
+                } else if (notification is ScrollUpdateNotification) {
+                  updateNotifications++;
+                } else if (notification is ScrollEndNotification) {
+                  endNotifications++;
+                }
+                return false;
+              },
+              child: ListView.builder(
+                controller: controller,
+                itemExtent: 50,
+                itemCount: 40,
+                itemBuilder: (_, i) => MouseRegion(
+                  onEnter: (_) => hoverEnters++,
+                  child: Container(
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.book, size: 16),
+                        const SizedBox(width: 8),
+                        Text('Card $i'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Наводим курсор на текст/иконку внутри карточки до начала скролла.
+    final TestPointer pointer = TestPointer(1, PointerDeviceKind.mouse);
+    await tester.sendEventToBinding(pointer.hover(const Offset(50, 125)));
+    await tester.pump();
+    final int initialHoverEnters = hoverEnters;
+
+    // Серия из 4 тиков колеса подряд (несмотря на движение карточек под курсором).
+    for (int i = 0; i < 4; i++) {
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, 80)));
+      await tester.pump(const Duration(milliseconds: 24));
+      await tester.sendEventToBinding(pointer.hover(const Offset(50, 125)));
+
+      final ScrollPosition pos = controller.position;
+      expect(pos.activity, isA<SmoothWheelScrollActivity>());
+      expect(pos.activity!.isScrolling, isTrue);
+      expect(pos.activity!.shouldIgnorePointer, isTrue);
+      expect(startNotifications, 1);
+      expect(endNotifications, 0);
+    }
+
+    // Во время активного скролла MouseRegion.onEnter проплывающих карточек не срабатывал.
+    expect(hoverEnters, initialHoverEnters);
+    expect(updateNotifications, greaterThan(1));
+
+    // Проверяем до полной остановки: пока пружина доезжает, start=1, end=0.
+    while (controller.position.activity!.isScrolling) {
+      expect(controller.position.activity!.shouldIgnorePointer, isTrue);
+      expect(startNotifications, 1);
+      expect(endNotifications, 0);
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    // После полной остановки ScrollStart ровно 1, ScrollEnd ровно 1, pointer снова активен.
+    expect(startNotifications, 1);
+    expect(endNotifications, 1);
+    expect(controller.position.activity!.isScrolling, isFalse);
+    expect(controller.position.activity!.shouldIgnorePointer, isFalse);
+  });
+
+  testWidgets(
+      'SmoothWheelScrollActivity preserves positive velocity without dropping to 0 between consecutive wheel ticks',
+      (tester) async {
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        scrollBehavior: const TsundokuSmoothScrollBehavior(),
+        builder: TsundokuSmoothWheelInterceptor.builder,
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 300,
+            child: ListView.builder(
+              controller: controller,
+              itemExtent: 50,
+              itemCount: 80,
+              itemBuilder: (_, i) => Text('Item $i'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Первый тик запускает движение.
+    await _sendWheel(
+      tester,
+      position: const Offset(200, 150),
+      scrollDelta: const Offset(0, 80),
+    );
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(controller.position.activity!.velocity, greaterThan(0.0));
+
+    // Серия последовательных тиков — скорость ни разу не сбрасывается в 0 между тиками.
+    for (int i = 0; i < 5; i++) {
+      final double velocityBeforeTick = controller.position.activity!.velocity;
+      expect(velocityBeforeTick, greaterThan(0.0));
+
+      await _sendWheel(
+        tester,
+        position: const Offset(200, 150),
+        scrollDelta: const Offset(0, 80),
+      );
+      expect(
+        controller.position.activity!.velocity,
+        equals(velocityBeforeTick),
+      );
+
+      await tester.pump(const Duration(milliseconds: 25));
+      expect(controller.position.activity!.velocity, greaterThan(0.0));
+    }
+
+    await tester.pumpAndSettle();
+    expect(controller.position.activity!.velocity, 0.0);
   });
 
   testWidgets(
@@ -140,8 +290,7 @@ void main() {
       lessThanOrEqualTo(unboostedDistance * kFastSpinMaxBoost + 0.5),
     );
 
-    // После паузы >= kFastSpinWindowMs (уже прошло >= 155 мс в pumpAndSettle)
-    // комбо-ускорение сбрасывается обратно в 1.0.
+    // После паузы >= kFastSpinWindowMs комбо-ускорение сбрасывается обратно в 1.0.
     final double beforeResetTick = controller.offset;
     await _sendWheel(
       tester,
@@ -353,7 +502,7 @@ void main() {
   });
 
   testWidgets(
-      'TsundokuSmoothWheelInterceptor syncs immediately on external jumpTo mid-glide',
+      'TsundokuSmoothWheelInterceptor stops SmoothWheelScrollActivity immediately on external jumpTo mid-glide',
       (tester) async {
     final controller = ScrollController();
     addTearDown(controller.dispose);
@@ -387,11 +536,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 16));
     expect(controller.offset, greaterThan(0.0));
     expect(controller.offset, lessThan(200.0 * kWheelStepMultiplier));
+    expect(controller.position.activity, isA<SmoothWheelScrollActivity>());
 
-    // Внешний jumpTo (> 2px от последнего записанного значения) должен остановить тикер.
+    // Внешний jumpTo должен сразу остановить SmoothWheelScrollActivity.
     controller.jumpTo(700.0);
     await tester.pump(const Duration(milliseconds: 16));
     await tester.pump(const Duration(milliseconds: 16));
     expect(controller.offset, closeTo(700.0, 0.01));
+    expect(controller.position.activity, isNot(isA<SmoothWheelScrollActivity>()));
+    expect(controller.position.activity!.isScrolling, isFalse);
   });
 }

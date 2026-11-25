@@ -65,6 +65,7 @@ class ImageLightbox extends ConsumerWidget {
                             child: TsundokuImage(
                               imageUrl: url,
                               fit: BoxFit.contain,
+                              fullSize: true,
                               errorWidget:
                                   const SizedBox(width: 200, height: 200),
                             ),

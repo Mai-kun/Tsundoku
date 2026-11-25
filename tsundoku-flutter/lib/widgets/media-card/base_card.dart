@@ -439,23 +439,27 @@ class _BaseCardState extends ConsumerState<BaseCard> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  MediaPoster(
-                    src: item.coverUrl != null
-                        ? proxiedExternalCoverUrl(item.coverUrl!)
-                        : null,
-                    alt: item.title,
-                    syncing: item.syncStatus == SyncStatus.syncing,
-                    needsReview: item.syncStatus == SyncStatus.needsReview,
-                    badges: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        MediaStatusBadge(
-                          id: 'status-${item.id}',
-                          status: item.status,
-                          onSelect: (next) => unawaited(status.changeStatus(next)),
-                        ),
-                        MediaScoreBadge(score: item.score),
-                      ],
+                  RepaintBoundary(
+                    child: MediaPoster(
+                      src: item.coverUrl != null
+                          ? proxiedExternalCoverUrl(item.coverUrl!)
+                          : null,
+                      alt: item.title,
+                      cacheWidth: 480,
+                      syncing: item.syncStatus == SyncStatus.syncing,
+                      needsReview: item.syncStatus == SyncStatus.needsReview,
+                      badges: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          MediaStatusBadge(
+                            id: 'status-${item.id}',
+                            status: item.status,
+                            onSelect: (next) =>
+                                unawaited(status.changeStatus(next)),
+                          ),
+                          MediaScoreBadge(score: item.score),
+                        ],
+                      ),
                     ),
                   ),
 

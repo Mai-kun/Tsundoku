@@ -1,5 +1,21 @@
 {
   "mcpServers": {
+    "dart": {
+      "command": "/home/maikun/development/flutter/bin/dart",
+      "args": [
+        "mcp-server"
+      ],
+      "env": {
+        "FLUTTER_ROOT": "/home/maikun/development/flutter"
+      }
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ]
+    },
     "chrome-devtools": {
       "command": "npx",
       "args": [

@@ -6,6 +6,18 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+/// Базовый множитель шага колеса мыши (убирает «тяжесть» мелкого шага GTK/Linux).
+const double kWheelStepMultiplier = 1.75;
+
+/// Максимальный дополнительный множитель ускорения при быстром вращении колеса подряд.
+const double kFastSpinMaxBoost = 2.1;
+
+/// Окно детекции быстрого последовательного вращения колеса в мс.
+const int kFastSpinWindowMs = 85;
+
+/// Длительность анимации доводки скролла в мс (кривая Chromium EaseOutCubic).
+const int kScrollDurationMs = 155;
+
 /// Глобальный [ScrollBehavior] приложения.
 ///
 /// Оборачивает вертикальные [Scrollable] в лёгкий маркер [_ScrollableAnchor],
@@ -81,29 +93,48 @@ class _SmoothWheelHitTestEntry extends BoxHitTestEntry {
 }
 
 class _GlideState {
+  double startPixels;
   double currentPixels;
-  double smoothedTargetPixels;
   double targetPixels;
+  double animStartTimeMs;
   double? lastWrittenPixels;
 
   _GlideState({
+    required this.startPixels,
     required this.currentPixels,
-    required this.smoothedTargetPixels,
     required this.targetPixels,
+    required this.animStartTimeMs,
     this.lastWrittenPixels,
   });
 }
 
 class _RenderSmoothWheelInterceptor extends RenderProxyBox {
   late final Ticker _ticker = Ticker(_onTick);
+  late final Stopwatch _clock =
+      GestureBinding.instance.samplingClock.stopwatch()..start();
   final Map<ScrollPosition, _GlideState> _activeGlides =
       <ScrollPosition, _GlideState>{};
-  Duration? _lastTickElapsed;
+
+  ScrollPosition? _lastWheelPosition;
+  double? _lastWheelTimeMs;
+  int _lastWheelDirection = 0;
+  double _spinBoost = 1.0;
+
+  double get _nowMs => _clock.elapsedMicroseconds / 1000.0;
+
+  static double _easeOutCubic(double t) {
+    final double clamped = t.clamp(0.0, 1.0);
+    return 1.0 - math.pow(1.0 - clamped, 3).toDouble();
+  }
 
   @override
   void dispose() {
     _ticker.dispose();
     _activeGlides.clear();
+    _lastWheelPosition = null;
+    _lastWheelTimeMs = null;
+    _lastWheelDirection = 0;
+    _spinBoost = 1.0;
     super.dispose();
   }
 
@@ -242,8 +273,26 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
     final ScrollPosition position = candidate.position;
     if (!_isPositionMounted(position)) return;
 
-    final double delta = _effectiveDelta(candidate, event.scrollDelta.dy);
-    if (delta == 0.0) return;
+    final double rawDelta = _effectiveDelta(candidate, event.scrollDelta.dy);
+    if (rawDelta == 0.0) return;
+
+    final double nowMs = _nowMs;
+    final int direction = rawDelta > 0.0 ? 1 : -1;
+
+    if (identical(_lastWheelPosition, position) &&
+        _lastWheelDirection == direction &&
+        _lastWheelTimeMs != null &&
+        (nowMs - _lastWheelTimeMs!) < kFastSpinWindowMs) {
+      final double maxBoost = math.max(1.0, kFastSpinMaxBoost);
+      _spinBoost = (_spinBoost + (maxBoost - 1.0) / 4.0).clamp(1.0, maxBoost);
+    } else {
+      _spinBoost = 1.0;
+    }
+    _lastWheelPosition = position;
+    _lastWheelTimeMs = nowMs;
+    _lastWheelDirection = direction;
+
+    final double effectiveDelta = rawDelta * kWheelStepMultiplier * _spinBoost;
 
     _GlideState? state = _activeGlides[position];
     // Если скролл сдвинули извне (drag скроллбара / внешний jumpTo),
@@ -255,28 +304,43 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
       state = null;
     }
 
-    state ??= _GlideState(
-      currentPixels: position.pixels,
-      smoothedTargetPixels: position.pixels,
-      targetPixels: position.pixels,
-      lastWrittenPixels: position.pixels,
-    );
+    if (state != null) {
+      // Обновляем текущую мгновенную позицию по кривой до nowMs перед retargeting'ом,
+      // чтобы избежать скачка назад или рывка при смене цели на лету.
+      final double progress = kScrollDurationMs <= 0
+          ? 1.0
+          : ((nowMs - state.animStartTimeMs) / kScrollDurationMs)
+              .clamp(0.0, 1.0);
+      final double eased = _easeOutCubic(progress);
+      state.currentPixels = (state.startPixels +
+              (state.targetPixels - state.startPixels) * eased)
+          .clamp(position.minScrollExtent, position.maxScrollExtent);
+    } else {
+      state = _GlideState(
+        startPixels: position.pixels,
+        currentPixels: position.pixels,
+        targetPixels: position.pixels,
+        animStartTimeMs: nowMs,
+        lastWrittenPixels: position.pixels,
+      );
+    }
 
-    state.targetPixels = (state.targetPixels + delta).clamp(
+    state.startPixels = state.currentPixels;
+    state.targetPixels = (state.targetPixels + effectiveDelta).clamp(
       position.minScrollExtent,
       position.maxScrollExtent,
     );
+    state.animStartTimeMs = nowMs;
 
     event.respond(allowPlatformDefault: false);
 
-    if ((state.targetPixels - position.pixels).abs() < 0.25 &&
+    if ((state.targetPixels - state.currentPixels).abs() < 0.05 &&
         !_activeGlides.containsKey(position)) {
       return;
     }
 
     _activeGlides[position] = state;
     if (!_ticker.isActive) {
-      _lastTickElapsed = null;
       _ticker.start();
     }
   }
@@ -287,26 +351,7 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
       return;
     }
 
-    final double dt;
-    if (_lastTickElapsed == null) {
-      dt = elapsed.inMicroseconds > 0
-          ? (elapsed.inMicroseconds / 1000000.0).clamp(0.001, 0.05)
-          : (1.0 / 144.0);
-    } else {
-      final int dtMicros =
-          elapsed.inMicroseconds - _lastTickElapsed!.inMicroseconds;
-      if (dtMicros <= 0) {
-        return;
-      }
-      dt = (dtMicros / 1000000.0).clamp(0.001, 0.05);
-    }
-    _lastTickElapsed = elapsed;
-
-    // Двухступенчатое сглаживание 2-го порядка в стиле Chromium (~260–300 мс
-    // выкат): мягкий разгон (bell-curve) и длинное плавное торможение без
-    // резкого стартового удара.
-    final double targetFactor = 1.0 - math.exp(-15.0 * dt);
-    final double followFactor = 1.0 - math.exp(-9.5 * dt);
+    final double nowMs = _nowMs;
     final List<ScrollPosition> toRemove = <ScrollPosition>[];
 
     for (final MapEntry<ScrollPosition, _GlideState> entry
@@ -326,42 +371,35 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
         continue;
       }
 
-      state.targetPixels = state.targetPixels.clamp(
+      final double clampedTarget = state.targetPixels.clamp(
         position.minScrollExtent,
         position.maxScrollExtent,
       );
-      state.smoothedTargetPixels = state.smoothedTargetPixels.clamp(
-        position.minScrollExtent,
-        position.maxScrollExtent,
-      );
+      state.targetPixels = clampedTarget;
 
-      final double rawDiff = state.targetPixels - state.currentPixels;
-      final double smoothedDiff =
-          state.targetPixels - state.smoothedTargetPixels;
+      // Детерминированная кривая Chromium EaseOutCubic: мгновенный чёткий отклик
+      // в t = 0 без фазовой задержки и плавный выкат в t = 1.0.
+      final double t = kScrollDurationMs <= 0
+          ? 1.0
+          : ((nowMs - state.animStartTimeMs) / kScrollDurationMs)
+              .clamp(0.0, 1.0);
+      final double eased = _easeOutCubic(t);
+      final double nextPixels = (state.startPixels +
+              (clampedTarget - state.startPixels) * eased)
+          .clamp(position.minScrollExtent, position.maxScrollExtent);
 
-      if (rawDiff.abs() < 0.25 && smoothedDiff.abs() < 0.25) {
-        final double finalTarget = state.targetPixels;
-        toRemove.add(position);
-        if (position.pixels != finalTarget) {
-          position.jumpTo(finalTarget);
-        }
-        continue;
+      state.currentPixels = nextPixels;
+      state.lastWrittenPixels = nextPixels;
+      if (position.pixels != nextPixels) {
+        position.jumpTo(nextPixels);
       }
 
-      state.smoothedTargetPixels =
-          (state.smoothedTargetPixels + smoothedDiff * targetFactor).clamp(
-        position.minScrollExtent,
-        position.maxScrollExtent,
-      );
-      final double followDiff =
-          state.smoothedTargetPixels - state.currentPixels;
-      state.currentPixels =
-          (state.currentPixels + followDiff * followFactor).clamp(
-        position.minScrollExtent,
-        position.maxScrollExtent,
-      );
-      state.lastWrittenPixels = state.currentPixels;
-      position.jumpTo(state.currentPixels);
+      if (t >= 1.0) {
+        if (position.pixels != clampedTarget) {
+          position.jumpTo(clampedTarget);
+        }
+        toRemove.add(position);
+      }
     }
 
     for (final ScrollPosition pos in toRemove) {
@@ -376,7 +414,6 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
     if (_ticker.isActive) {
       _ticker.stop();
     }
-    _lastTickElapsed = null;
   }
 }
 

@@ -17,7 +17,7 @@ Future<void> _sendWheel(
 
 void main() {
   testWidgets(
-      'TsundokuSmoothWheelInterceptor produces smooth intermediate steps on ListView without instant jump',
+      'TsundokuSmoothWheelInterceptor uses EaseOutCubic with immediate start and kWheelStepMultiplier',
       (tester) async {
     final controller = ScrollController();
     addTearDown(controller.dispose);
@@ -43,53 +43,116 @@ void main() {
     await tester.pump();
     expect(controller.offset, 0.0);
 
+    const double rawDelta = 120.0;
+    final double expectedTarget = rawDelta * kWheelStepMultiplier; // 210.0
+
     await _sendWheel(
       tester,
       position: const Offset(200, 150),
-      scrollDelta: const Offset(0, 240),
+      scrollDelta: const Offset(0, rawDelta),
     );
 
-    // Первый кадр тикера: позиция НЕ делает мгновенный скачок на 240, а движется плавно.
+    // За первые 16 мс EaseOutCubic делает уверенный старт без фазовой задержки.
     await tester.pump();
-    final double offset0 = controller.offset;
-    expect(offset0, greaterThan(0.0));
-    expect(offset0, lessThan(240.0));
-
-    // Профиль скорости 2-го порядка (bell-curve velocity):
-    // шаг на старте (t = 8ms) меньше шага на пике разгона (t = 24ms).
-    await tester.pump(const Duration(milliseconds: 8));
-    final double offset8 = controller.offset;
-    final double step8 = offset8 - offset0;
-    expect(offset8, greaterThan(offset0));
-
-    await tester.pump(const Duration(milliseconds: 8));
+    await tester.pump(const Duration(milliseconds: 16));
     final double offset16 = controller.offset;
-    final double step16 = offset16 - offset8;
-    expect(offset16, greaterThan(offset8));
+    expect(offset16, greaterThan(0.0));
+    expect(offset16, lessThan(expectedTarget));
 
-    await tester.pump(const Duration(milliseconds: 8));
-    final double offset24 = controller.offset;
-    final double step24 = offset24 - offset16;
-    expect(offset24, greaterThan(offset16));
-    expect(offset24, lessThan(240.0));
+    // Следующие 16 мс: скорость монотонно затухает (step16to32 < step0to16),
+    // как в детерминированной кривой Chromium EaseOutCubic.
+    await tester.pump(const Duration(milliseconds: 16));
+    final double offset32 = controller.offset;
+    final double step16to32 = offset32 - offset16;
+    expect(step16to32, greaterThan(0.0));
+    expect(step16to32, lessThan(offset16));
 
-    // Ключевая проверка 2-го порядка: нет стартового «рывка» в t=0..8ms!
-    expect(offset0, lessThan(step24));
-    expect(step8, lessThan(step24));
-    expect(step16, greaterThan(step8));
+    // На половине длительности (~77 мс от старта) скролл уже прошёл > 80% пути.
+    await tester.pump(const Duration(milliseconds: 45));
+    final double offset77 = controller.offset;
+    expect(offset77, greaterThan(expectedTarget * 0.8));
+    expect(offset77, lessThan(expectedTarget));
 
-    // Длинный выкат в стиле Chromium (~260–300 мс): на отметке ~120 мс
-    // скролл ещё мягко скользит, а не затухает мгновенно за 100 мс.
-    for (int i = 0; i < 12; i++) {
-      await tester.pump(const Duration(milliseconds: 8));
-    }
-    final double offset120 = controller.offset;
-    expect(offset120, greaterThan(offset24));
-    expect(offset120, lessThan(200.0));
+    // По истечении kScrollDurationMs (155 мс) анимация точно завершена.
+    await tester.pump(Duration(milliseconds: kScrollDurationMs - 77));
+    expect(controller.offset, closeTo(expectedTarget, 0.25));
 
-    // После достаточного времени скролл сходится точно к целевой позиции 240.0.
     await tester.pumpAndSettle();
-    expect(controller.offset, closeTo(240.0, 0.25));
+    expect(controller.offset, closeTo(expectedTarget, 0.01));
+  });
+
+  testWidgets(
+      'TsundokuSmoothWheelInterceptor accelerates fast wheel spins up to kFastSpinMaxBoost and resets after window',
+      (tester) async {
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        scrollBehavior: const TsundokuSmoothScrollBehavior(),
+        builder: TsundokuSmoothWheelInterceptor.builder,
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 300,
+            child: ListView.builder(
+              controller: controller,
+              itemExtent: 50,
+              itemCount: 80,
+              itemBuilder: (_, i) => Text('Item $i'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Одиночный тик -> базовый множитель 1.0 * kWheelStepMultiplier (100 * 1.75 = 175).
+    await _sendWheel(
+      tester,
+      position: const Offset(200, 150),
+      scrollDelta: const Offset(0, 100),
+    );
+    await tester.pumpAndSettle();
+    expect(controller.offset, closeTo(100.0 * kWheelStepMultiplier, 0.25));
+
+    // Быстрая серия из 6 тиков с интервалом 30 мс (< kFastSpinWindowMs = 85 мс):
+    // должна разогнать boost до kFastSpinMaxBoost и при retargeting'е не прыгать назад.
+    final double startOffset = controller.offset;
+    double prevOffset = startOffset;
+    for (int i = 0; i < 6; i++) {
+      await _sendWheel(
+        tester,
+        position: const Offset(200, 150),
+        scrollDelta: const Offset(0, 50),
+      );
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(controller.offset, greaterThanOrEqualTo(prevOffset));
+      prevOffset = controller.offset;
+    }
+
+    await tester.pumpAndSettle();
+    final double fastSpinDistance = controller.offset - startOffset;
+    final double unboostedDistance = 6 * 50.0 * kWheelStepMultiplier;
+    expect(fastSpinDistance, greaterThan(unboostedDistance * 1.4));
+    expect(
+      fastSpinDistance,
+      lessThanOrEqualTo(unboostedDistance * kFastSpinMaxBoost + 0.5),
+    );
+
+    // После паузы >= kFastSpinWindowMs (уже прошло >= 155 мс в pumpAndSettle)
+    // комбо-ускорение сбрасывается обратно в 1.0.
+    final double beforeResetTick = controller.offset;
+    await _sendWheel(
+      tester,
+      position: const Offset(200, 150),
+      scrollDelta: const Offset(0, 100),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      controller.offset - beforeResetTick,
+      closeTo(100.0 * kWheelStepMultiplier, 0.25),
+    );
   });
 
   testWidgets(
@@ -123,27 +186,27 @@ void main() {
     await tester.pump();
     expect(controller.offset, 0.0);
 
-    // Два быстрых тика колеса накапливают target = 120 + 120 = 240.
+    // Два тика с паузой >= kFastSpinWindowMs дают 2 * 100 * kWheelStepMultiplier = 350.0.
     await _sendWheel(
       tester,
       position: const Offset(200, 150),
-      scrollDelta: const Offset(0, 120),
+      scrollDelta: const Offset(0, 100),
     );
+    await tester.pump(const Duration(milliseconds: 90));
+    final double midOffset = controller.offset;
+    expect(midOffset, greaterThan(0.0));
+
     await _sendWheel(
       tester,
       position: const Offset(200, 150),
-      scrollDelta: const Offset(0, 120),
+      scrollDelta: const Offset(0, 100),
     );
-
-    await tester.pump();
-    expect(controller.offset, greaterThan(0.0));
-    expect(controller.offset, lessThan(240.0));
-
-    await tester.pump(const Duration(milliseconds: 7));
-    expect(controller.offset, lessThan(240.0));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(controller.offset, greaterThanOrEqualTo(midOffset));
+    expect(controller.offset, lessThan(200.0 * kWheelStepMultiplier));
 
     await tester.pumpAndSettle();
-    expect(controller.offset, closeTo(240.0, 0.5));
+    expect(controller.offset, closeTo(200.0 * kWheelStepMultiplier, 0.5));
   });
 
   testWidgets(
@@ -188,21 +251,21 @@ void main() {
     final Offset innerCenter =
         tester.getCenter(find.byKey(const ValueKey('inner-list')));
 
-    // Пока внутренний список не на дне, колесо крутит только внутренний список.
+    // Пока внутренний список не на дне, колесо крутит только внутренний список (60 * 1.75 = 105).
     await _sendWheel(
       tester,
       position: innerCenter,
-      scrollDelta: const Offset(0, 120),
+      scrollDelta: const Offset(0, 60),
     );
     await tester.pumpAndSettle();
-    expect(innerController.offset, closeTo(120.0, 0.5));
+    expect(innerController.offset, closeTo(60.0 * kWheelStepMultiplier, 0.5));
     expect(outerController.offset, 0.0);
 
     // Докручиваем внутренний список ровно до его нижней границы (200.0).
     await _sendWheel(
       tester,
       position: innerCenter,
-      scrollDelta: const Offset(0, 120),
+      scrollDelta: const Offset(0, 80),
     );
     await tester.pumpAndSettle();
     expect(innerController.offset, closeTo(200.0, 0.5));
@@ -212,15 +275,15 @@ void main() {
     await _sendWheel(
       tester,
       position: innerCenter,
-      scrollDelta: const Offset(0, 150),
+      scrollDelta: const Offset(0, 100),
     );
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 7));
+    await tester.pump(const Duration(milliseconds: 16));
     expect(outerController.offset, greaterThan(0.0));
-    expect(outerController.offset, lessThan(150.0));
+    expect(outerController.offset, lessThan(100.0 * kWheelStepMultiplier));
 
     await tester.pumpAndSettle();
-    expect(outerController.offset, closeTo(150.0, 0.5));
+    expect(outerController.offset, closeTo(100.0 * kWheelStepMultiplier, 0.5));
     expect(innerController.offset, closeTo(200.0, 0.5));
   });
 
@@ -274,18 +337,19 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
 
     // Дискретный щелчок колеса (например, пришедший как unknown на Wayland/GTK3)
-    // перехватывается плавно, а не прыгает сразу на +120.
+    // перехватывается плавно с множителем kWheelStepMultiplier.
     await _sendWheel(
       tester,
       position: const Offset(200, 150),
-      scrollDelta: const Offset(0, 120),
+      scrollDelta: const Offset(0, 100),
       kind: PointerDeviceKind.unknown,
     );
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
     expect(controller.offset, greaterThan(104.0));
-    expect(controller.offset, lessThan(224.0));
+    expect(controller.offset, lessThan(104.0 + 100.0 * kWheelStepMultiplier));
     await tester.pumpAndSettle();
-    expect(controller.offset, closeTo(224.0, 0.5));
+    expect(controller.offset, closeTo(104.0 + 100.0 * kWheelStepMultiplier, 0.5));
   });
 
   testWidgets(
@@ -317,12 +381,12 @@ void main() {
     await _sendWheel(
       tester,
       position: const Offset(200, 150),
-      scrollDelta: const Offset(0, 300),
+      scrollDelta: const Offset(0, 200),
     );
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 7));
+    await tester.pump(const Duration(milliseconds: 16));
     expect(controller.offset, greaterThan(0.0));
-    expect(controller.offset, lessThan(300.0));
+    expect(controller.offset, lessThan(200.0 * kWheelStepMultiplier));
 
     // Внешний jumpTo (> 2px от последнего записанного значения) должен остановить тикер.
     controller.jumpTo(700.0);

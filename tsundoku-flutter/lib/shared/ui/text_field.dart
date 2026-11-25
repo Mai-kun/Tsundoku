@@ -139,17 +139,23 @@ class _TsundokuTextFieldState extends State<TsundokuTextField> {
       borderColor = th.borderSubtle;
     }
 
-    final textStyle = widget.style ??
+    final baseTextStyle = widget.style ??
         TextStyle(
           fontSize: 13,
           color: th.textPrimary,
           fontWeight: FontWeight.w400,
         );
-    final double effectiveFontSize = textStyle.fontSize ?? 13.0;
+    final double effectiveFontSize = baseTextStyle.fontSize ?? 13.0;
+    final TextStyle textStyle = widget.multiline
+        ? baseTextStyle
+        : (baseTextStyle.height == null
+            ? baseTextStyle.copyWith(height: 1.0)
+            : baseTextStyle);
 
     final hintStyle = TextStyle(
       fontSize: effectiveFontSize,
-      color: th.textMuted.withAlpha(153), // text-muted/60
+      height: widget.multiline ? textStyle.height : (textStyle.height ?? 1.0),
+      color: th.textMuted.withValues(alpha: 0.6), // text-muted/60
       fontWeight: FontWeight.w400,
     );
 
@@ -180,7 +186,7 @@ class _TsundokuTextFieldState extends State<TsundokuTextField> {
           ? null
           : StrutStyle(
               fontSize: effectiveFontSize,
-              height: 1.1,
+              height: textStyle.height ?? 1.0,
               forceStrutHeight: true,
             ),
       textAlignVertical:

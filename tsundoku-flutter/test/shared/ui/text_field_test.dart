@@ -123,24 +123,34 @@ void main() {
       (tester) async {
     final controller = TextEditingController();
     addTearDown(controller.dispose);
+    const hintText = 'http://127.0.0.1:7890';
 
     await tester.pumpWidget(MaterialApp(
-      theme: buildTsundokuTheme(),
+      theme: buildTsundokuTheme(tokens: TsundokuTheme.obsidian),
       home: Scaffold(
         body: Center(
           child: TsundokuTextField(
             controller: controller,
             width: 280,
-            placeholder: 'http://127.0.0.1:7890',
+            placeholder: hintText,
           ),
         ),
       ),
     ));
     await tester.pumpAndSettle();
 
+    final textField = tester.widget<TextField>(find.byType(TextField));
+    expect(textField.style?.height, 1.0);
+    expect(textField.strutStyle?.height, 1.0);
+    expect(textField.strutStyle?.forceStrutHeight, isTrue);
+    expect(textField.decoration?.filled, isFalse);
+    expect(textField.decoration?.hintStyle?.height, 1.0);
+
     final fieldCenterY = tester.getCenter(find.byType(TsundokuTextField)).dy;
     final editableCenterY = tester.getCenter(find.byType(EditableText)).dy;
+    final placeholderCenterY = tester.getCenter(find.text(hintText)).dy;
     expect((editableCenterY - fieldCenterY).abs(), lessThan(0.5));
+    expect((placeholderCenterY - fieldCenterY).abs(), lessThan(0.5));
 
     await tester.enterText(find.byType(TextField), 'socks5://127.0.0.1:1080');
     await tester.pumpAndSettle();

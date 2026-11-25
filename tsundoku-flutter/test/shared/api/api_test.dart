@@ -382,4 +382,54 @@ void main() {
           const Duration(milliseconds: 15000));
     });
   });
+
+  group('Startup connection retry (cold-start Kestrel race)', () {
+    test('retries connectionError up to 10 times and succeeds once server binds port', () async {
+      var attempts = 0;
+      adapter = StubAdapter((options) {
+        attempts++;
+        if (attempts < 4) {
+          throw DioException(
+            requestOptions: options,
+            type: DioExceptionType.connectionError,
+            error: 'SocketException: Connection refused',
+          );
+        }
+        return jsonBody(<Map<String, dynamic>>[]);
+      });
+      final dio = Dio(BaseOptions(baseUrl: 'http://127.0.0.1:5150'))
+        ..httpClientAdapter = adapter;
+      api = TsundokuApi(dio, connectionRetryDelay: const Duration(milliseconds: 1));
+      api.onRequestStart = () => started++;
+      api.onRequestEnd = () => ended++;
+
+      final list = await api.getMedia();
+      expect(list, isEmpty);
+      expect(attempts, 4);
+      expect(started, 1);
+      expect(ended, 1);
+    });
+
+    test('throws DioException after 10 connection retries are exhausted', () async {
+      var attempts = 0;
+      adapter = StubAdapter((options) {
+        attempts++;
+        throw DioException(
+          requestOptions: options,
+          type: DioExceptionType.connectionError,
+          error: 'SocketException: Connection refused',
+        );
+      });
+      final dio = Dio(BaseOptions(baseUrl: 'http://127.0.0.1:5150'))
+        ..httpClientAdapter = adapter;
+      api = TsundokuApi(dio, connectionRetryDelay: const Duration(milliseconds: 1));
+      api.onRequestStart = () => started++;
+      api.onRequestEnd = () => ended++;
+
+      await expectLater(api.getStorageSettings(), throwsA(isA<DioException>()));
+      expect(attempts, TsundokuApi.maxConnectionRetries + 1);
+      expect(started, 1);
+      expect(ended, 1);
+    });
+  });
 }

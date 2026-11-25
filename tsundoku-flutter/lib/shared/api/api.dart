@@ -419,6 +419,7 @@ class OfflineModeResponse {
 /// `baseUrl` нигде не хардкодится и приходит извне (аргумент UI-бинаря).
 class TsundokuApi {
   final Dio dio;
+  final Duration connectionRetryDelay;
 
   /// networkActivity.begin/end — аналоги в [_guard]; в приложении
   /// apiClientProvider подключает notifier, в тестах — счётчик.
@@ -427,7 +428,10 @@ class TsundokuApi {
 
   Future<List<SourceInfo>>? _sourcesCachePromise;
 
-  TsundokuApi(this.dio);
+  TsundokuApi(
+    this.dio, {
+    this.connectionRetryDelay = const Duration(milliseconds: 150),
+  });
 
   /// Конструктор приложения: dio с baseUrl + 15s timeouts (аналог
   /// `AbortSignal.timeout(15000)` в apiFetch).
@@ -445,16 +449,60 @@ class TsundokuApi {
   String absoluteUrl(String path) => '${dio.options.baseUrl}$path';
 
   static const Duration requestTimeout = Duration(milliseconds: 15000);
+  static const int maxConnectionRetries = 10;
 
   // ------------------------------------------------------------------
   // Ядро: apiFetch / requestJson / requestVoid.
   // ------------------------------------------------------------------
 
-  Future<Response<T>> _fetch<T>(RequestOptions opts) {
+  static bool _isLocalHost(Uri uri) {
+    final host = uri.host.toLowerCase();
+    return host.isEmpty ||
+        host == '127.0.0.1' ||
+        host == 'localhost' ||
+        host == '::1';
+  }
+
+  static bool _shouldRetryConnectionError(
+    DioException error,
+    RequestOptions opts,
+  ) {
+    if (opts.cancelToken?.isCancelled == true) return false;
+    final data = opts.data;
+    if (data is FormData && data.isFinalized) return false;
+    if (!_isLocalHost(opts.uri)) return false;
+
+    if (error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.connectionTimeout) {
+      return true;
+    }
+    if (error.type == DioExceptionType.unknown && error.error != null) {
+      final msg = error.error.toString();
+      return msg.contains('SocketException') ||
+          msg.contains('Connection refused');
+    }
+    return false;
+  }
+
+  Future<Response<T>> _fetch<T>(RequestOptions opts) async {
     onRequestStart?.call();
-    return dio
-        .fetch<T>(opts)
-        .whenComplete(() => onRequestEnd?.call());
+    try {
+      var attempt = 0;
+      while (true) {
+        try {
+          return await dio.fetch<T>(opts);
+        } on DioException catch (e) {
+          if (attempt >= maxConnectionRetries ||
+              !_shouldRetryConnectionError(e, opts)) {
+            rethrow;
+          }
+          attempt += 1;
+          await Future<void>.delayed(connectionRetryDelay);
+        }
+      }
+    } finally {
+      onRequestEnd?.call();
+    }
   }
 
   RequestOptions _opts(
@@ -1711,8 +1759,12 @@ class ResolveAllResult {
 /// networkActivity.begin/end внутри apiFetch).
 /// Устанавливается при старте UI: `ref.read(apiBaseUrlProvider.notifier).set(url)`.
 class ApiBaseUrlController extends Notifier<String> {
+  final String _initialUrl;
+
+  ApiBaseUrlController([this._initialUrl = '']);
+
   @override
-  String build() => '';
+  String build() => _initialUrl;
 
   void set(String url) => state = url;
 }

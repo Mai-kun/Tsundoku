@@ -50,6 +50,7 @@ class _FirstRunStorageModalState extends ConsumerState<FirstRunStorageModal> {
   void didUpdateWidget(FirstRunStorageModal oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!oldWidget.isOpen && widget.isOpen) {
+      _saving = false;
       _loadSettings();
     }
   }
@@ -107,6 +108,9 @@ class _FirstRunStorageModalState extends ConsumerState<FirstRunStorageModal> {
         },
       );
 
+      if (mounted) {
+        setState(() => _saving = false);
+      }
       widget.onSaved?.call();
     } catch (_) {
       if (mounted) {

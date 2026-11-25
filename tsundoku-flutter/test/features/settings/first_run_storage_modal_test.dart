@@ -159,4 +159,17 @@ void main() {
     expect(adapter.lastPostBody!['migrateExistingData'], false);
     expect(savedCalled, isTrue);
   });
+
+  testWidgets('never shows restart spinner on open before Save is pressed',
+      (tester) async {
+    await tester.pumpWidget(_buildSubject(isOpen: true));
+    await tester.pump();
+    expect(find.text('Перезапуск сервера...'), findsNothing);
+
+    await tester.pumpAndSettle();
+    expect(find.text('Перезапуск сервера...'), findsNothing);
+    expect(find.textContaining('По умолчанию'), findsOneWidget);
+    expect(find.textContaining('Рядом с программой'), findsOneWidget);
+    expect(find.textContaining('Свой путь'), findsOneWidget);
+  });
 }

@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../features/filter-and-sort/filter_bar.dart';
+import '../features/prefetch-details/media_detail_prefetch.dart';
 import '../shared/api/api.dart';
 import '../shared/api/jobs_client.dart';
 import '../shared/api/navigation_categories.dart';
@@ -113,10 +114,11 @@ class _CategoryViewState extends ConsumerState<CategoryView> {
   int _requestSequence = 0;
 
   int? _prevRefreshKey;
-  int _stuckReloadKey = 0;
+  int _stuckReloadRevision = -1;
 
   /// таймер 500ms-дебаунса поиска ($effect cleanup).
   Timer? _loadDebounce;
+  Timer? _stuckReloadTimer;
 
   @override
   void initState() {
@@ -126,6 +128,13 @@ class _CategoryViewState extends ConsumerState<CategoryView> {
     _totalCount = initial.length;
     _loading = initial.isEmpty;
     _applySavedState(isInitialMount: true);
+  }
+
+  @override
+  void dispose() {
+    _loadDebounce?.cancel();
+    _stuckReloadTimer?.cancel();
+    super.dispose();
   }
 
   /// $effect.pre: смена категории → сохранить состояние + подставить
@@ -173,6 +182,22 @@ class _CategoryViewState extends ConsumerState<CategoryView> {
   /// Вью не активна — эффекты не гоняются (Svelte рендерит только active).
   @override
   Widget build(BuildContext context) {
+    // Реактивный тихий рефетч при завершении фоновых задач (в т.ч. в IndexedStack).
+    ref.listen<JobsState>(jobsClientProvider, (previous, next) {
+      final prevActive = previous?.jobs.any(isActiveJob) ?? false;
+      final nextActive = next.jobs.any(isActiveJob);
+      final settledChanged =
+          previous != null && next.settledVersion != previous.settledVersion;
+      final activeDropped = prevActive && !nextActive;
+      if (settledChanged || activeDropped) {
+        _stuckReloadTimer?.cancel();
+        _stuckReloadTimer = null;
+        categoryCache.clear();
+        ref.read(mediaDetailCacheProvider).clear();
+        _refresh();
+      }
+    });
+
     if (!widget.active) return const SliverToBoxAdapter(child: SizedBox.shrink());
 
     // $effect (fetch): смена категории/refreshKey → invalidate; search/sort
@@ -316,16 +341,48 @@ class _CategoryViewState extends ConsumerState<CategoryView> {
     _loadDebounce = Timer(delay, () => unawaited(_loadItems(sequence)));
   }
 
-  /// Страховка: «Синхронизация» без активных задач → перезагрузка один раз.
+  /// Страховка: «Синхронизация» без активных задач → тихий контрольный рефетч через 2 секунды.
   void _runStuckReloadEffect() {
     final jobs = ref.read(jobsClientProvider);
-    if (jobs.jobs.where(isActiveJob).isNotEmpty) return;
+    final hasActiveJobs = jobs.jobs.any(isActiveJob);
     final stuck = _allItems
         .any((item) => item.syncStatus == SyncStatus.syncing);
-    if (!stuck) return;
-    if (_stuckReloadKey == widget.refreshKey) return;
-    _stuckReloadKey = widget.refreshKey;
-    _refresh();
+    if (hasActiveJobs || !stuck) {
+      _stuckReloadTimer?.cancel();
+      _stuckReloadTimer = null;
+      return;
+    }
+    final revisionKey = widget.refreshKey * 100000 + jobs.settledVersion;
+    if (_stuckReloadRevision == revisionKey || _stuckReloadTimer != null) return;
+    _stuckReloadTimer = Timer(const Duration(seconds: 2), () {
+      _stuckReloadTimer = null;
+      if (!mounted) return;
+      final currentJobs = ref.read(jobsClientProvider);
+      if (currentJobs.jobs.any(isActiveJob)) return;
+      final stillStuck = _allItems
+          .any((item) => item.syncStatus == SyncStatus.syncing);
+      if (!stillStuck) return;
+      _stuckReloadRevision = revisionKey;
+      _refresh();
+    });
+  }
+
+  bool _isSameSnapshot(List<MediaItem> a, List<MediaItem> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      final x = a[i];
+      final y = b[i];
+      if (x.id != y.id ||
+          x.updatedAt != y.updatedAt ||
+          x.syncStatus != y.syncStatus ||
+          x.coverUrl != y.coverUrl ||
+          x.title != y.title ||
+          x.status != y.status ||
+          x.score != y.score) {
+        return false;
+      }
+    }
+    return true;
   }
 
   Future<void> _loadItems(int sequence) async {
@@ -353,12 +410,7 @@ class _CategoryViewState extends ConsumerState<CategoryView> {
           _loading = false;
           _refreshing = false;
           _totalCount = page.totalCount;
-          // O(1) snapshot check.
-          final sameSnapshot = _allItems.length == found.length &&
-              (_allItems.isEmpty ||
-                  (_allItems.first.updatedAt == found.first.updatedAt &&
-                      _allItems.last.updatedAt == found.last.updatedAt));
-          if (sameSnapshot) return;
+          if (_isSameSnapshot(_allItems, found)) return;
           // Anti-stale: pending optimistic значения штампуются на новые items.
           reconcileListProgress(
               ProviderScope.containerOf(context, listen: false), found);

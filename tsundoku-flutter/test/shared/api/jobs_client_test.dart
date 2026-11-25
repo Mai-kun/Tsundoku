@@ -153,6 +153,49 @@ void main() {
     expect(settledJobs.length, 1, reason: 'после unsubscribe листенер снят');
   });
 
+  test('settledVersion инкрементируется при завершении задачи и очистке activeJobs, поддерживаются несколько подписчиков onJobSettled', () {
+    final listenerA = <String>[];
+    final listenerB = <String>[];
+    final unsubA = client.onJobSettled((j) => listenerA.add(j.jobId));
+    final unsubB = client.onJobSettled((j) => listenerB.add(j.jobId));
+    addTearDown(unsubA);
+    addTearDown(unsubB);
+
+    expect(container.read(jobsClientProvider).settledVersion, 0);
+
+    client.applyJson(jsonEncode({
+      'jobId': 'j1', 'mediaId': 'm1', 'title': 'S1', 'progressPercent': 10,
+      'currentStep': 'W', 'status': 'Running',
+      'startedAt': '2026-11-21T00:00:00Z', 'errorMessage': null,
+    }));
+    client.applyJson(jsonEncode({
+      'jobId': 'j2', 'mediaId': 'm2', 'title': 'S2', 'progressPercent': 20,
+      'currentStep': 'W', 'status': 'Running',
+      'startedAt': '2026-11-21T00:00:00Z', 'errorMessage': null,
+    }));
+    expect(container.read(jobsClientProvider).settledVersion, 0);
+
+    // Завершается первая (вторая ещё активна) -> settledVersion == 1, оба подписчика вызваны.
+    client.applyJson(jsonEncode({
+      'jobId': 'j1', 'mediaId': 'm1', 'title': 'S1', 'progressPercent': 100,
+      'currentStep': 'Готово', 'status': 'Completed',
+      'startedAt': '2026-11-21T00:00:00Z', 'errorMessage': null,
+    }));
+    expect(container.read(jobsClientProvider).settledVersion, 1);
+    expect(listenerA, ['j1']);
+    expect(listenerB, ['j1']);
+
+    // Завершается вторая (activeJobs пуст) -> settledVersion == 2.
+    client.applyJson(jsonEncode({
+      'jobId': 'j2', 'mediaId': 'm2', 'title': 'S2', 'progressPercent': 100,
+      'currentStep': 'Готово', 'status': 'Completed',
+      'startedAt': '2026-11-21T00:00:00Z', 'errorMessage': null,
+    }));
+    expect(container.read(jobsClientProvider).settledVersion, 2);
+    expect(listenerA, ['j1', 'j2']);
+    expect(listenerB, ['j1', 'j2']);
+  });
+
   test('eviction: terminal job удаляется через 4s (fakeAsync)', () {
     fakeAsync((async) {
       client.applyJson(jsonEncode({

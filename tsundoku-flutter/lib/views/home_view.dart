@@ -20,6 +20,7 @@ import 'package:material_ui/material_ui.dart';
 import '../entities/media/model/media_labels.dart';
 import '../entities/media/model/stale_triage.dart';
 import '../entities/media/model/time_budget.dart';
+import '../features/prefetch-details/media_detail_prefetch.dart';
 import '../features/update-progress/optimistic_progress.dart';
 import '../shared/api/api.dart';
 import '../shared/api/jobs_client.dart';
@@ -35,6 +36,7 @@ import '../shared/ui/total_badge.dart';
 import '../shared/utils/swr_cache.dart';
 import '../shared/utils/ui_settings.dart';
 import '../views/category_model.dart' show LibrarySort;
+import '../views/category_view.dart' show categoryCache;
 import '../widgets/media-grid/media_grid.dart';
 
 class HomePayload {
@@ -136,8 +138,9 @@ class _HomeViewState extends ConsumerState<HomeView> {
   bool _hasLoaded = homeCache.peek(homeKey) != null;
   Timer? _searchDebounce;
   Timer? _skeletonTimer;
+  Timer? _stuckReloadTimer;
   int? _prevRefreshKey;
-  int _stuckReloadKey = 0;
+  int _stuckReloadRevision = -1;
   String? _lastFetchEffectKey;
 
   void _randomPickListener() => _pickRandomTitle();
@@ -166,6 +169,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
     homeRandomPickSignal.removeListener(_randomPickListener);
     _searchDebounce?.cancel();
     _skeletonTimer?.cancel();
+    _stuckReloadTimer?.cancel();
     super.dispose();
   }
 
@@ -312,6 +316,23 @@ class _HomeViewState extends ConsumerState<HomeView> {
 
     // 200ms debounce поиска.
     ref.listen(_homeSearchDebounceProvider, (_, _) {});
+
+    // Реактивный тихий рефетч при завершении фоновых задач (в т.ч. в IndexedStack).
+    ref.listen<JobsState>(jobsClientProvider, (previous, next) {
+      final prevActive = previous?.jobs.any(isActiveJob) ?? false;
+      final nextActive = next.jobs.any(isActiveJob);
+      final settledChanged =
+          previous != null && next.settledVersion != previous.settledVersion;
+      final activeDropped = prevActive && !nextActive;
+      if (settledChanged || activeDropped) {
+        _stuckReloadTimer?.cancel();
+        _stuckReloadTimer = null;
+        homeCache.invalidate(homeKey);
+        categoryCache.clear();
+        ref.read(mediaDetailCacheProvider).clear();
+        _refresh();
+      }
+    });
 
     // $effect(fetch) — гвард ключом зависимостей (решение #39).
     _runFetchEffect();
@@ -622,16 +643,31 @@ class _HomeViewState extends ConsumerState<HomeView> {
     unawaited(_loadSections(++_requestSequence, isInitial));
   }
 
-  /// Страховка «Синхронизации» без активных задач.
+  /// Страховка «Синхронизации» без активных задач: тихий контрольный рефетч через 2 секунды.
   void _runStuckReloadEffect() {
     final jobs = ref.read(jobsClientProvider);
-    if (jobs.jobs.where(isActiveJob).isNotEmpty) return;
+    final hasActiveJobs = jobs.jobs.any(isActiveJob);
     final hasStuck = [_inProgress, _upNext, _recentlyCompleted]
         .any((list) => list.any((item) => item.syncStatus == SyncStatus.syncing));
-    if (!hasStuck) return;
-    if (_stuckReloadKey == widget.refreshKey) return;
-    _stuckReloadKey = widget.refreshKey;
-    _refresh();
+    if (hasActiveJobs || !hasStuck) {
+      _stuckReloadTimer?.cancel();
+      _stuckReloadTimer = null;
+      return;
+    }
+    final revisionKey = widget.refreshKey * 100000 + jobs.settledVersion;
+    if (_stuckReloadRevision == revisionKey || _stuckReloadTimer != null) return;
+    _stuckReloadTimer = Timer(const Duration(seconds: 2), () {
+      _stuckReloadTimer = null;
+      if (!mounted) return;
+      final currentJobs = ref.read(jobsClientProvider);
+      if (currentJobs.jobs.any(isActiveJob)) return;
+      final stillStuck = [_inProgress, _upNext, _recentlyCompleted]
+          .any((list) => list.any((item) => item.syncStatus == SyncStatus.syncing));
+      if (!stillStuck) return;
+      _stuckReloadRevision = revisionKey;
+      homeCache.invalidate(homeKey);
+      _refresh();
+    });
   }
 
   Future<void> _loadSections(int sequence, bool showLoading) async {

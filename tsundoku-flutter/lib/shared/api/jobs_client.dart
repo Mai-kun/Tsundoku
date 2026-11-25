@@ -45,12 +45,14 @@ class JobsState {
   final List<PendingMatchItemDto> pendingMatches;
   final bool isModalOpen;
   final JobsModalTab modalTab;
+  final int settledVersion;
 
   const JobsState({
     this.jobs = const <JobProgress>[],
     this.pendingMatches = const <PendingMatchItemDto>[],
     this.isModalOpen = false,
     this.modalTab = JobsModalTab.jobs,
+    this.settledVersion = 0,
   });
 
   JobsState copyWith({
@@ -58,12 +60,14 @@ class JobsState {
     List<PendingMatchItemDto>? pendingMatches,
     bool? isModalOpen,
     JobsModalTab? modalTab,
+    int? settledVersion,
   }) =>
       JobsState(
         jobs: jobs ?? this.jobs,
         pendingMatches: pendingMatches ?? this.pendingMatches,
         isModalOpen: isModalOpen ?? this.isModalOpen,
         modalTab: modalTab ?? this.modalTab,
+        settledVersion: settledVersion ?? this.settledVersion,
       );
 }
 
@@ -124,6 +128,7 @@ class JobsClientController extends Notifier<JobsState> {
             },
             onDone: () {
               _streamSub = null;
+              syncJobs();
             },
           );
     }).catchError((Object _) {
@@ -344,6 +349,7 @@ class JobsClientController extends Notifier<JobsState> {
       return;
     }
 
+    final wasActiveCount = state.jobs.where(isActiveJob).length;
     final index =
         state.jobs.indexWhere((entry) => entry.jobId == job.jobId);
     final previous = index == -1 ? null : state.jobs[index];
@@ -358,11 +364,21 @@ class JobsClientController extends Notifier<JobsState> {
           if (entry.jobId == job.jobId) job else entry,
       ];
     }
-    state = state.copyWith(jobs: jobs);
 
     final wasTerminal = previous != null && !isActiveJob(previous);
     final nowTerminal = !isActiveJob(job);
-    if (nowTerminal && !wasTerminal) {
+    final nowActiveCount = jobs.where(isActiveJob).length;
+    final activeCleared = wasActiveCount > 0 && nowActiveCount == 0;
+    final jobSettled = nowTerminal && !wasTerminal;
+
+    state = state.copyWith(
+      jobs: jobs,
+      settledVersion: (jobSettled || activeCleared)
+          ? state.settledVersion + 1
+          : state.settledVersion,
+    );
+
+    if (jobSettled) {
       for (final listener in List.of(_jobSettledListeners)) {
         try {
           listener(job);
@@ -403,10 +419,16 @@ class JobsClientController extends Notifier<JobsState> {
     _evictionTimers[job.jobId]?.cancel();
     _evictionTimers[job.jobId] = Timer(completedTtl, () {
       _evictionTimers.remove(job.jobId);
+      final prevActive = state.jobs.where(isActiveJob).length;
+      final remaining = state.jobs
+          .where((entry) => entry.jobId != job.jobId)
+          .toList(growable: false);
+      final nextActive = remaining.where(isActiveJob).length;
       state = state.copyWith(
-        jobs: state.jobs
-            .where((entry) => entry.jobId != job.jobId)
-            .toList(growable: false),
+        jobs: remaining,
+        settledVersion: (prevActive > 0 && nextActive == 0)
+            ? state.settledVersion + 1
+            : state.settledVersion,
       );
     });
   }

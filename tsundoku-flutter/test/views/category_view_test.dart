@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tsundoku_flutter/shared/api/api.dart';
+import 'package:tsundoku_flutter/shared/api/jobs_client.dart';
 import 'package:tsundoku_flutter/shared/types/models.dart';
 import 'package:tsundoku_flutter/views/category_view.dart';
 
@@ -153,5 +154,96 @@ void main() {
       isTrue,
       reason: 'categoryFilters(game) → type=Game в query',
     );
+  });
+
+  testWidgets('CategoryView обновляет карточку в середине списка при завершении задачи в jobsClient',
+      (tester) async {
+    var enriched = false;
+    adapter = StubAdapter((options) {
+      if (options.path.contains('/api/media')) {
+        final items = [
+          {
+            'id': 'a1', 'title': 'Alpha', 'type': 'tvshow', 'isAnime': true, 'status': 1,
+            'createdAt': '2026-01-01T00:00:00Z', 'updatedAt': '2026-01-01T00:00:00Z',
+          },
+          {
+            'id': 'a2', 'title': 'Middle Syncing', 'type': 'tvshow', 'isAnime': true, 'status': 1,
+            'syncStatus': enriched ? 0 : 1,
+            'createdAt': '2026-01-01T00:00:00Z',
+            'updatedAt': enriched ? '2026-01-01T00:05:00Z' : '2026-01-01T00:00:00Z',
+          },
+          {
+            'id': 'a3', 'title': 'Omega', 'type': 'tvshow', 'isAnime': true, 'status': 1,
+            'createdAt': '2026-01-01T00:00:00Z', 'updatedAt': '2026-01-01T00:00:00Z',
+          },
+        ];
+        return ResponseBody.fromString(jsonEncode(items), 200, headers: {
+          Headers.contentTypeHeader: ['application/json'],
+          'x-total-count': ['3'],
+        });
+      }
+      return jsonBody([]);
+    });
+    final dio = Dio()..options.baseUrl = 'http://127.0.0.1:5150';
+    dio.httpClientAdapter = adapter;
+    final api = TsundokuApi(dio);
+    container = ProviderContainer(overrides: [
+      apiClientProvider.overrideWithValue(api),
+    ]);
+    addTearDown(container.dispose);
+
+    final jobs = container.read(jobsClientProvider.notifier);
+    jobs.attachApi(api);
+    jobs.applyJson(jsonEncode({
+      'jobId': 'job-cat-1',
+      'mediaId': 'a2',
+      'title': 'Middle Syncing',
+      'progressPercent': 40,
+      'currentStep': 'Обогащение',
+      'status': 'Running',
+      'startedAt': '2026-01-01T00:00:00Z',
+    }));
+
+    categoryCache.invalidate('anime');
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        home: Scaffold(
+          body: CustomScrollView(
+            slivers: [
+              CategoryView(
+                key: const ValueKey('anime'),
+                category: 'anime',
+                refreshKey: 0,
+                onOpen: (_) {},
+                onMediaChanged: () {},
+              ),
+            ],
+          ),
+        ),
+      ),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('Middle Syncing'), findsOneWidget);
+    expect(find.text('Синхронизация'), findsOneWidget);
+
+    enriched = true;
+    jobs.applyJson(jsonEncode({
+      'jobId': 'job-cat-1',
+      'mediaId': 'a2',
+      'title': 'Middle Syncing',
+      'progressPercent': 100,
+      'currentStep': 'Готово',
+      'status': 'Completed',
+      'startedAt': '2026-01-01T00:00:00Z',
+    }));
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pumpAndSettle(const Duration(seconds: 5));
+
+    expect(find.text('Middle Syncing'), findsOneWidget);
+    expect(find.text('Синхронизация'), findsNothing);
   });
 }

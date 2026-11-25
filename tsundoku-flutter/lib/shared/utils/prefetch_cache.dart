@@ -18,6 +18,8 @@ abstract class PrefetchCache<T> {
   void set(String key, T value);
 
   void invalidate(String id);
+
+  void clear();
 }
 
 class _PrefetchCacheImpl<T> implements PrefetchCache<T> {
@@ -77,6 +79,11 @@ class _PrefetchCacheImpl<T> implements PrefetchCache<T> {
   @override
   void invalidate(String id) {
     _entries.remove(id);
+  }
+
+  @override
+  void clear() {
+    _entries.clear();
   }
 }
 

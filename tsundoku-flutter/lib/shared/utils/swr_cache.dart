@@ -20,6 +20,10 @@ class SwrCache<T> {
   void invalidate(String key) {
     _entries.remove(key);
   }
+
+  void clear() {
+    _entries.clear();
+  }
 }
 
 /// `createSwrCache<T>()` — тот же API именованным конструктором.

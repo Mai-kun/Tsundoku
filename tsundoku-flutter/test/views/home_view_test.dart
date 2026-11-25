@@ -9,6 +9,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tsundoku_flutter/shared/api/api.dart';
+import 'package:tsundoku_flutter/shared/api/jobs_client.dart';
 import 'package:tsundoku_flutter/shared/ui/text_field.dart';
 import 'package:tsundoku_flutter/views/home_view.dart';
 
@@ -202,5 +203,89 @@ void main() {
     expect(searchRect.height, 36.0);
     expect(searchRect.top, buttonRect.top);
     expect(searchRect.bottom, buttonRect.bottom);
+  });
+
+  testWidgets('завершение фоновой задачи в jobsClient снимает плашку «Синхронизация» без сброса в скелетон',
+      (tester) async {
+    var enriched = false;
+    adapter = StubAdapter((options) {
+      final status = options.queryParameters['status']?.toString();
+      if (status == '1') {
+        return jsonBody([
+          {
+            'id': 'sync-1',
+            'title': 'Новый тайтл',
+            'type': 'tvshow',
+            'isAnime': true,
+            'status': 1,
+            'syncStatus': enriched ? 0 : 1,
+            'createdAt': '2026-01-01T00:00:00Z',
+            'updatedAt': enriched ? '2026-01-01T00:05:00Z' : '2026-01-01T00:00:00Z',
+          },
+        ]);
+      }
+      return jsonBody([]);
+    });
+    final dio = Dio()..options.baseUrl = 'http://127.0.0.1:5150';
+    dio.httpClientAdapter = adapter;
+    final api = TsundokuApi(dio);
+    container = ProviderContainer(overrides: [
+      apiClientProvider.overrideWithValue(api),
+    ]);
+    addTearDown(container.dispose);
+
+    final jobs = container.read(jobsClientProvider.notifier);
+    jobs.attachApi(api);
+    jobs.applyJson(jsonEncode({
+      'jobId': 'job-sync-1',
+      'mediaId': 'sync-1',
+      'title': 'Новый тайтл',
+      'progressPercent': 30,
+      'currentStep': 'Обогащение',
+      'status': 'Running',
+      'startedAt': '2026-01-01T00:00:00Z',
+    }));
+
+    homeCache.invalidate(homeKey);
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        home: Scaffold(
+          body: CustomScrollView(
+            slivers: [
+              HomeView(
+                refreshKey: 0,
+                onOpen: (_) {},
+                onMediaChanged: () {},
+              ),
+            ],
+          ),
+        ),
+      ),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('Новый тайтл'), findsOneWidget);
+    expect(find.text('Синхронизация'), findsOneWidget);
+
+    // Задача на сервере завершилась -> SSE присылает Completed.
+    enriched = true;
+    jobs.applyJson(jsonEncode({
+      'jobId': 'job-sync-1',
+      'mediaId': 'sync-1',
+      'title': 'Новый тайтл',
+      'progressPercent': 100,
+      'currentStep': 'Готово',
+      'status': 'Completed',
+      'startedAt': '2026-01-01T00:00:00Z',
+    }));
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pumpAndSettle(const Duration(seconds: 5));
+
+    expect(find.text('Новый тайтл'), findsOneWidget);
+    expect(find.text('Синхронизация'), findsNothing);
   });
 }

@@ -51,23 +51,32 @@ void main() {
 
     // Первый кадр тикера: позиция НЕ делает мгновенный скачок на 240, а движется плавно.
     await tester.pump();
-    final double firstFrameOffset = controller.offset;
-    expect(firstFrameOffset, greaterThan(0.0));
-    expect(firstFrameOffset, lessThan(240.0));
+    final double offset0 = controller.offset;
+    expect(offset0, greaterThan(0.0));
+    expect(offset0, lessThan(240.0));
 
-    await tester.pump(const Duration(milliseconds: 7));
-    final double step1 = controller.offset;
-    expect(step1, greaterThan(firstFrameOffset));
-    expect(step1, lessThan(240.0));
+    // Профиль скорости 2-го порядка (bell-curve velocity):
+    // шаг на старте (t = 8ms) меньше шага на пике разгона (t = 24ms).
+    await tester.pump(const Duration(milliseconds: 8));
+    final double offset8 = controller.offset;
+    final double step8 = offset8 - offset0;
+    expect(offset8, greaterThan(offset0));
 
-    // Серия 144Hz кадров (~7ms): каждый кадр монотонно приближается к 240.
-    final List<double> steps = <double>[step1];
-    for (int i = 0; i < 6; i++) {
-      await tester.pump(const Duration(milliseconds: 7));
-      steps.add(controller.offset);
-      expect(steps.last, greaterThan(steps[steps.length - 2]));
-      expect(steps.last, lessThan(240.0));
-    }
+    await tester.pump(const Duration(milliseconds: 8));
+    final double offset16 = controller.offset;
+    final double step16 = offset16 - offset8;
+    expect(offset16, greaterThan(offset8));
+
+    await tester.pump(const Duration(milliseconds: 8));
+    final double offset24 = controller.offset;
+    final double step24 = offset24 - offset16;
+    expect(offset24, greaterThan(offset16));
+    expect(offset24, lessThan(240.0));
+
+    // Ключевая проверка 2-го порядка: нет стартового «рывка» в t=0..8ms!
+    expect(offset0, lessThan(step24));
+    expect(step8, lessThan(step24));
+    expect(step16, greaterThan(step8));
 
     // После достаточного времени скролл сходится точно к целевой позиции 240.0.
     await tester.pumpAndSettle();
@@ -207,7 +216,7 @@ void main() {
   });
 
   testWidgets(
-      'TsundokuSmoothWheelInterceptor skips trackpad and Ctrl+wheel events',
+      'TsundokuSmoothWheelInterceptor skips subpixel trackpad swipes and Ctrl+wheel, intercepts discrete events',
       (tester) async {
     final controller = ScrollController();
     addTearDown(controller.dispose);
@@ -232,15 +241,15 @@ void main() {
     );
     await tester.pump();
 
-    // Trackpad событие не перехватывается плавным скроллом (идёт напрямую в Scrollable сразу).
+    // Мелкий субпиксельный свайп тачпада (|dy| < 8) пропускается без перехвата.
     await _sendWheel(
       tester,
       position: const Offset(200, 150),
-      scrollDelta: const Offset(0, 100),
+      scrollDelta: const Offset(0, 4),
       kind: PointerDeviceKind.trackpad,
     );
     await tester.pump();
-    expect(controller.offset, closeTo(100.0, 0.01));
+    expect(controller.offset, closeTo(4.0, 0.01));
 
     // Ctrl + mouse wheel пропускается перехватчиком.
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -252,8 +261,22 @@ void main() {
       kind: PointerDeviceKind.mouse,
     );
     await tester.pump();
-    expect(controller.offset, closeTo(200.0, 0.01));
+    expect(controller.offset, closeTo(104.0, 0.01));
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+
+    // Дискретный щелчок колеса (например, пришедший как unknown на Wayland/GTK3)
+    // перехватывается плавно, а не прыгает сразу на +120.
+    await _sendWheel(
+      tester,
+      position: const Offset(200, 150),
+      scrollDelta: const Offset(0, 120),
+      kind: PointerDeviceKind.unknown,
+    );
+    await tester.pump();
+    expect(controller.offset, greaterThan(104.0));
+    expect(controller.offset, lessThan(224.0));
+    await tester.pumpAndSettle();
+    expect(controller.offset, closeTo(224.0, 0.5));
   });
 
   testWidgets(

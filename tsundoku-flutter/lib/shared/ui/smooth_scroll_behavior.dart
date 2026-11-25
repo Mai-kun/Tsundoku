@@ -82,11 +82,13 @@ class _SmoothWheelHitTestEntry extends BoxHitTestEntry {
 
 class _GlideState {
   double currentPixels;
+  double smoothedTargetPixels;
   double targetPixels;
   double? lastWrittenPixels;
 
   _GlideState({
     required this.currentPixels,
+    required this.smoothedTargetPixels,
     required this.targetPixels,
     this.lastWrittenPixels,
   });
@@ -209,14 +211,16 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
   @override
   void handleEvent(PointerEvent event, HitTestEntry entry) {
     if (event is! PointerScrollEvent) return;
-    if (event.kind != PointerDeviceKind.mouse) return;
     if (HardwareKeyboard.instance.isControlPressed) return;
-    if (event.scrollDelta.dy == 0.0) return;
+    final double dy = event.scrollDelta.dy;
+    if (dy == 0.0) return;
+    // Пропускаем только мелкие непрерывные субпиксельные свайпы настоящего тачпада.
+    if (event.kind == PointerDeviceKind.trackpad && dy.abs() < 8.0) return;
     if (entry is! _SmoothWheelHitTestEntry) return;
 
     final _ScrollableCandidate? candidate = _pickCandidate(
       entry.candidates,
-      event.scrollDelta.dy,
+      dy,
     );
     if (candidate == null) return;
 
@@ -253,6 +257,7 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
 
     state ??= _GlideState(
       currentPixels: position.pixels,
+      smoothedTargetPixels: position.pixels,
       targetPixels: position.pixels,
       lastWrittenPixels: position.pixels,
     );
@@ -297,7 +302,10 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
     }
     _lastTickElapsed = elapsed;
 
-    final double factor = 1.0 - math.exp(-18.0 * dt);
+    // Двухступенчатое сглаживание 2-го порядка: плавный разгон (bell-curve) без
+    // резкого стартового удара в первый кадр.
+    final double targetFactor = 1.0 - math.exp(-28.0 * dt);
+    final double followFactor = 1.0 - math.exp(-22.0 * dt);
     final List<ScrollPosition> toRemove = <ScrollPosition>[];
 
     for (final MapEntry<ScrollPosition, _GlideState> entry
@@ -321,9 +329,16 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
         position.minScrollExtent,
         position.maxScrollExtent,
       );
-      final double diff = state.targetPixels - state.currentPixels;
+      state.smoothedTargetPixels = state.smoothedTargetPixels.clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
 
-      if (diff.abs() < 0.5) {
+      final double rawDiff = state.targetPixels - state.currentPixels;
+      final double smoothedDiff =
+          state.targetPixels - state.smoothedTargetPixels;
+
+      if (rawDiff.abs() < 0.5 && smoothedDiff.abs() < 0.5) {
         final double finalTarget = state.targetPixels;
         toRemove.add(position);
         if (position.pixels != finalTarget) {
@@ -332,7 +347,15 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
         continue;
       }
 
-      state.currentPixels = (state.currentPixels + diff * factor).clamp(
+      state.smoothedTargetPixels =
+          (state.smoothedTargetPixels + smoothedDiff * targetFactor).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
+      final double followDiff =
+          state.smoothedTargetPixels - state.currentPixels;
+      state.currentPixels =
+          (state.currentPixels + followDiff * followFactor).clamp(
         position.minScrollExtent,
         position.maxScrollExtent,
       );

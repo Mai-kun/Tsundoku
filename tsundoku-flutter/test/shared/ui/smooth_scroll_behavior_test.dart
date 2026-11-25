@@ -56,7 +56,7 @@ void main() {
     final ScrollPosition position = controller.position;
     expect(position.activity, isA<SmoothWheelScrollActivity>());
     expect(position.activity!.isScrolling, isTrue);
-    expect(position.activity!.shouldIgnorePointer, isTrue);
+    expect(position.activity!.shouldIgnorePointer, isFalse);
 
     // Плавный старт без ступеньки, монотонно приближается к цели без перелёта.
     double prev = 0.0;
@@ -67,7 +67,7 @@ void main() {
       expect(current, lessThanOrEqualTo(expectedTarget));
       if (position.activity is SmoothWheelScrollActivity) {
         expect(position.activity!.isScrolling, isTrue);
-        expect(position.activity!.shouldIgnorePointer, isTrue);
+        expect(position.activity!.shouldIgnorePointer, isFalse);
       }
       prev = current;
     }
@@ -79,7 +79,7 @@ void main() {
   });
 
   testWidgets(
-      'SmoothWheelScrollActivity sends ScrollStartNotification once, ScrollEndNotification once, keeps shouldIgnorePointer=true, and suppresses card MouseRegion hover during scroll',
+      'SmoothWheelScrollActivity sends ScrollStartNotification once, ScrollEndNotification once, and keeps shouldIgnorePointer=false',
       (tester) async {
     final controller = ScrollController();
     addTearDown(controller.dispose);
@@ -87,7 +87,6 @@ void main() {
     int startNotifications = 0;
     int updateNotifications = 0;
     int endNotifications = 0;
-    int hoverEnters = 0;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -112,18 +111,15 @@ void main() {
                 controller: controller,
                 itemExtent: 50,
                 itemCount: 40,
-                itemBuilder: (_, i) => MouseRegion(
-                  onEnter: (_) => hoverEnters++,
-                  child: Container(
-                    alignment: Alignment.centerLeft,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.book, size: 16),
-                        const SizedBox(width: 8),
-                        Text('Card $i'),
-                      ],
-                    ),
+                itemBuilder: (_, i) => Container(
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.book, size: 16),
+                      const SizedBox(width: 8),
+                      Text('Card $i'),
+                    ],
                   ),
                 ),
               ),
@@ -134,13 +130,11 @@ void main() {
     );
     await tester.pump();
 
-    // Наводим курсор на текст/иконку внутри карточки до начала скролла.
     final TestPointer pointer = TestPointer(1, PointerDeviceKind.mouse);
     await tester.sendEventToBinding(pointer.hover(const Offset(50, 125)));
     await tester.pump();
-    final int initialHoverEnters = hoverEnters;
 
-    // Серия из 4 тиков колеса подряд (несмотря на движение карточек под курсором).
+    // Серия из 4 тиков колеса подряд: start=1, end=0, активность не сбрасывается.
     for (int i = 0; i < 4; i++) {
       await tester.sendEventToBinding(pointer.scroll(const Offset(0, 80)));
       await tester.pump(const Duration(milliseconds: 24));
@@ -149,28 +143,112 @@ void main() {
       final ScrollPosition pos = controller.position;
       expect(pos.activity, isA<SmoothWheelScrollActivity>());
       expect(pos.activity!.isScrolling, isTrue);
-      expect(pos.activity!.shouldIgnorePointer, isTrue);
+      expect(pos.activity!.shouldIgnorePointer, isFalse);
       expect(startNotifications, 1);
       expect(endNotifications, 0);
     }
 
-    // Во время активного скролла MouseRegion.onEnter проплывающих карточек не срабатывал.
-    expect(hoverEnters, initialHoverEnters);
     expect(updateNotifications, greaterThan(1));
 
     // Проверяем до полной остановки: пока пружина доезжает, start=1, end=0.
     while (controller.position.activity!.isScrolling) {
-      expect(controller.position.activity!.shouldIgnorePointer, isTrue);
+      expect(controller.position.activity!.shouldIgnorePointer, isFalse);
       expect(startNotifications, 1);
       expect(endNotifications, 0);
       await tester.pump(const Duration(milliseconds: 16));
     }
 
-    // После полной остановки ScrollStart ровно 1, ScrollEnd ровно 1, pointer снова активен.
+    // После полной остановки ScrollStart ровно 1, ScrollEnd ровно 1.
     expect(startNotifications, 1);
     expect(endNotifications, 1);
     expect(controller.position.activity!.isScrolling, isFalse);
     expect(controller.position.activity!.shouldIgnorePointer, isFalse);
+  });
+
+  testWidgets(
+      'SmoothWheelScrollActivity survives ScrollableState rebuild frames across inter-frame wheel ticks without native pointerScroll takeover',
+      (tester) async {
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.linux),
+        scrollBehavior: const TsundokuSmoothScrollBehavior(),
+        builder: TsundokuSmoothWheelInterceptor.builder,
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 300,
+            child: ListView.builder(
+              controller: controller,
+              itemExtent: 50,
+              itemCount: 80,
+              itemBuilder: (_, i) => Container(
+                alignment: Alignment.centerLeft,
+                child: Text('Item $i'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Тик №1: запускает SmoothWheelScrollActivity.
+    await _sendWheel(
+      tester,
+      position: const Offset(200, 150),
+      scrollDelta: const Offset(0, 100),
+    );
+    expect(controller.position.activity, isA<SmoothWheelScrollActivity>());
+    final SmoothWheelScrollActivity activity =
+        controller.position.activity! as SmoothWheelScrollActivity;
+    final double targetAfterTick1 = activity.targetPixels;
+    expect(targetAfterTick1, closeTo(100.0 * kWheelStepMultiplier, 0.01));
+
+    // Два кадра (16мс + 16мс), чтобы прошли все rebuild'ы ScrollableState/Scrollbar.
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(identical(controller.position.activity, activity), isTrue);
+    expect(activity.isDisposed, isFalse);
+    final double offsetBeforeTick2 = controller.offset;
+    expect(offsetBeforeTick2, greaterThan(0.0));
+    expect(offsetBeforeTick2, lessThan(targetAfterTick1));
+
+    // Тик №2 во время активного движения: активность не должна быть уничтожена
+    // нативным pointerScroll, а targetPixels должен плавно увеличиться без скачка offset.
+    await _sendWheel(
+      tester,
+      position: const Offset(200, 150),
+      scrollDelta: const Offset(0, 100),
+    );
+    expect(identical(controller.position.activity, activity), isTrue);
+    expect(activity.isDisposed, isFalse);
+    expect(controller.offset, equals(offsetBeforeTick2));
+    final double targetAfterTick2 = activity.targetPixels;
+    expect(targetAfterTick2, greaterThan(targetAfterTick1));
+
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump(const Duration(milliseconds: 16));
+    final double offsetBeforeTick3 = controller.offset;
+    expect(offsetBeforeTick3, greaterThan(offsetBeforeTick2));
+    expect(identical(controller.position.activity, activity), isTrue);
+
+    // Тик №3 во время активного движения: то же самое — никакой подмены активности.
+    await _sendWheel(
+      tester,
+      position: const Offset(200, 150),
+      scrollDelta: const Offset(0, 100),
+    );
+    expect(identical(controller.position.activity, activity), isTrue);
+    expect(activity.isDisposed, isFalse);
+    expect(controller.offset, equals(offsetBeforeTick3));
+    final double targetAfterTick3 = activity.targetPixels;
+    expect(targetAfterTick3, greaterThan(targetAfterTick2));
+
+    await tester.pumpAndSettle();
+    expect(controller.offset, closeTo(targetAfterTick3, 0.25));
   });
 
   testWidgets(

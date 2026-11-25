@@ -7,25 +7,50 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Базовый множитель шага колеса мыши (убирает «тяжесть» мелкого шага GTK/Linux).
-const double kWheelStepMultiplier = 1.75;
+const double kWheelStepMultiplier = 1.65;
 
 /// Максимальный дополнительный множитель ускорения при быстром вращении колеса подряд.
-const double kFastSpinMaxBoost = 2.1;
+const double kFastSpinMaxBoost = 1.85;
 
 /// Окно детекции быстрого последовательного вращения колеса в мс.
 const int kFastSpinWindowMs = 85;
 
 /// Угловая частота (рад/с) критически демпфированной пружины скролла колесом.
-const double kWheelSpringOmega = 20.0;
+const double kWheelSpringOmega = 13.5;
 
 /// Глобальный [ScrollBehavior] приложения.
 ///
-/// Оборачивает вертикальные [Scrollable] в лёгкий маркер [_ScrollableAnchor],
-/// чтобы корневой [TsundokuSmoothWheelInterceptor] надёжно находил любой
-/// вертикальный `ScrollPosition` (включая `SingleChildScrollView`) даже в
-/// release-сборках без `debugCreator`.
+/// Оборачивает вертикальные [Scrollable] в лёгкий маркер [_ScrollableAnchor]
+/// как в [buildScrollbar] (снаружи `IgnorePointer`), так и в
+/// [buildOverscrollIndicator], чтобы корневой [TsundokuSmoothWheelInterceptor]
+/// надёжно находил любой вертикальный `ScrollPosition` (включая
+/// `SingleChildScrollView`) даже в release-сборках без `debugCreator`.
 class TsundokuSmoothScrollBehavior extends MaterialScrollBehavior {
   const TsundokuSmoothScrollBehavior();
+
+  Widget _wrapVerticalAnchor(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    return axisDirectionToAxis(details.direction) == Axis.vertical
+        ? _ScrollableAnchor(
+            scrollableContext: context,
+            details: details,
+            child: child,
+          )
+        : child;
+  }
+
+  @override
+  Widget buildScrollbar(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    final Widget scrollbar = super.buildScrollbar(context, child, details);
+    return _wrapVerticalAnchor(context, scrollbar, details);
+  }
 
   @override
   Widget buildOverscrollIndicator(
@@ -33,14 +58,7 @@ class TsundokuSmoothScrollBehavior extends MaterialScrollBehavior {
     Widget child,
     ScrollableDetails details,
   ) {
-    final Widget wrapped =
-        axisDirectionToAxis(details.direction) == Axis.vertical
-        ? _ScrollableAnchor(
-            scrollableContext: context,
-            details: details,
-            child: child,
-          )
-        : child;
+    final Widget wrapped = _wrapVerticalAnchor(context, child, details);
     return super.buildOverscrollIndicator(context, wrapped, details);
   }
 }
@@ -51,9 +69,8 @@ class TsundokuSmoothScrollBehavior extends MaterialScrollBehavior {
 /// напрямую через [ScrollActivityDelegate.setPixels], не вызывая на каждом
 /// кадре `jumpTo()` (`goIdle` -> `didEndScroll` -> `goBallistic`).
 ///
-/// Пока [shouldIgnorePointer] равен `true`, [Scrollable] включает
-/// `IgnorePointer` над [Viewport], отключая лишние hover-ребилды карточек
-/// под курсором во время прокрутки.
+/// Нативный скролл колёсиком во Flutter не включает `IgnorePointer`, чтобы не
+/// ослеплять `hitTest` для последующих событий колеса (`shouldIgnorePointer => false`).
 class SmoothWheelScrollActivity extends ScrollActivity {
   SmoothWheelScrollActivity(
     super.delegate, {
@@ -104,7 +121,7 @@ class SmoothWheelScrollActivity extends ScrollActivity {
   bool get isScrolling => true;
 
   @override
-  bool get shouldIgnorePointer => true;
+  bool get shouldIgnorePointer => false;
 
   @override
   double get velocity => _currentVelocity;
@@ -174,8 +191,8 @@ class SmoothWheelScrollActivity extends ScrollActivity {
     final double nextPixels = _targetPixels + nextY;
     final double nextVelocity = (c2 - _omega * (y0 + c2 * dt)) * decay;
 
-    if ((_targetPixels - nextPixels).abs() < 0.25 &&
-        nextVelocity.abs() < 25.0) {
+    if ((_targetPixels - nextPixels).abs() < 0.2 &&
+        nextVelocity.abs() < 4.0) {
       _currentPixels = _targetPixels;
       _currentVelocity = 0.0;
       if (pos == null || pos.pixels != _targetPixels) {

@@ -122,16 +122,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
     }
   }
 
-  Future<void> _moveCategory(int index, String direction, I18nDictionary t) async {
-    if (_orderSaving) return;
-    final nextList = [..._categoryOrder];
-    final targetIndex = direction == 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= nextList.length) return;
-
-    final temp = nextList[index];
-    nextList[index] = nextList[targetIndex];
-    nextList[targetIndex] = temp;
-
+  Future<void> _saveCategoryOrder(List<String> nextList, I18nDictionary t) async {
     setState(() {
       _categoryOrder = nextList;
       _orderSaving = true;
@@ -159,6 +150,31 @@ class _SearchTabState extends ConsumerState<SearchTab> {
         setState(() => _orderSaving = false);
       }
     }
+  }
+
+  Future<void> _moveCategory(int index, String direction, I18nDictionary t) async {
+    if (_orderSaving) return;
+    final nextList = [..._categoryOrder];
+    final targetIndex = direction == 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= nextList.length) return;
+
+    final temp = nextList[index];
+    nextList[index] = nextList[targetIndex];
+    nextList[targetIndex] = temp;
+
+    await _saveCategoryOrder(nextList, t);
+  }
+
+  Future<void> _reorderCategory(int oldIndex, int newIndex, I18nDictionary t) async {
+    if (_orderSaving) return;
+    final nextList = [..._categoryOrder];
+    if (oldIndex == newIndex || oldIndex < 0 || newIndex < 0 ||
+        oldIndex >= nextList.length || newIndex >= nextList.length) {
+      return;
+    }
+    final moved = nextList.removeAt(oldIndex);
+    nextList.insert(newIndex, moved);
+    await _saveCategoryOrder(nextList, t);
   }
 
   // ── Promoted Categories ─────────────────────────────────────────────────────
@@ -301,18 +317,13 @@ class _SearchTabState extends ConsumerState<SearchTab> {
     } catch (_) {}
   }
 
-  Future<void> _moveSourcePriority(String mediaType, int index, String direction, I18nDictionary t) async {
-    if (_prioritySaving) return;
-    final currentList = [...(_sourcePriority[mediaType] ?? const <String>[])];
-    final targetIndex = direction == 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= currentList.length) return;
-
-    final temp = currentList[index];
-    currentList[index] = currentList[targetIndex];
-    currentList[targetIndex] = temp;
-
+  Future<void> _saveSourcePriority(
+    String mediaType,
+    List<String> nextProviders,
+    I18nDictionary t,
+  ) async {
     final nextMap = Map<String, List<String>>.from(_sourcePriority);
-    nextMap[mediaType] = currentList;
+    nextMap[mediaType] = nextProviders;
 
     setState(() {
       _sourcePriority = nextMap;
@@ -337,6 +348,46 @@ class _SearchTabState extends ConsumerState<SearchTab> {
         setState(() => _prioritySaving = false);
       }
     }
+  }
+
+  Future<void> _moveSourcePriority(String mediaType, int index, String direction, I18nDictionary t) async {
+    if (_prioritySaving) return;
+    final currentList = [...(_sourcePriority[mediaType] ?? const <String>[])];
+    final targetIndex = direction == 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= currentList.length) return;
+
+    final temp = currentList[index];
+    currentList[index] = currentList[targetIndex];
+    currentList[targetIndex] = temp;
+
+    await _saveSourcePriority(mediaType, currentList, t);
+  }
+
+  Future<void> _reorderSourcePriority(
+    String mediaType,
+    int oldIndex,
+    int newIndex,
+    I18nDictionary t,
+  ) async {
+    if (_prioritySaving) return;
+    final currentList = [...(_sourcePriority[mediaType] ?? const <String>[])];
+    if (oldIndex == newIndex || oldIndex < 0 || newIndex < 0 ||
+        oldIndex >= currentList.length || newIndex >= currentList.length) {
+      return;
+    }
+    final moved = currentList.removeAt(oldIndex);
+    currentList.insert(newIndex, moved);
+    await _saveSourcePriority(mediaType, currentList, t);
+  }
+
+  Widget _dragProxyDecorator(Widget child, int index, Animation<double> animation) {
+    return Material(
+      color: Colors.transparent,
+      elevation: 6,
+      shadowColor: Colors.black54,
+      borderRadius: BorderRadius.circular(10),
+      child: child,
+    );
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -422,71 +473,97 @@ class _SearchTabState extends ConsumerState<SearchTab> {
         if (_orderLoading)
           const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()))
         else
-          ListView.separated(
+          ReorderableListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
+            buildDefaultDragHandles: false,
+            proxyDecorator: _dragProxyDecorator,
             itemCount: _categoryOrder.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            onReorderItem: (oldIndex, newIndex) => _reorderCategory(oldIndex, newIndex, t),
             itemBuilder: (context, index) {
               final cat = _categoryOrder[index];
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0x05FFFFFF),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0x1AFFFFFF)),
-                ),
-                child: Row(
-                  children: [
-                    // Position number
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: const Color(0x0DFFFFFF),
-                        borderRadius: BorderRadius.circular(6),
+              return Padding(
+                key: ValueKey('cat-$cat'),
+                padding: EdgeInsets.only(bottom: index == _categoryOrder.length - 1 ? 0 : 8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0x05FFFFFF),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0x1AFFFFFF)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: ReorderableDragStartListener(
+                          index: index,
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.grab,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  LucideIcons.gripVertical,
+                                  size: 16,
+                                  color: theme.textMuted.withAlpha(140),
+                                ),
+                                const SizedBox(width: 10),
+                                // Position number
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0x0DFFFFFF),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    '${index + 1}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                // Category title
+                                Expanded(
+                                  child: Text(
+                                    _categoryLabel(cat, t),
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '${index + 1}',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)),
+                      const SizedBox(width: 8),
+                      // Up/Down action buttons
+                      IconButton(
+                        icon: const Icon(LucideIcons.chevronUp, size: 16),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        color: index == 0 || _orderSaving ? theme.textMuted.withAlpha(60) : theme.textMuted,
+                        onPressed: index == 0 || _orderSaving ? null : () => _moveCategory(index, 'up', t),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Category title
-                    SizedBox(
-                      width: 140,
-                      child: Text(
-                        _categoryLabel(cat, t),
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
-                        overflow: TextOverflow.ellipsis,
+                      IconButton(
+                        icon: const Icon(LucideIcons.chevronDown, size: 16),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        color: index == _categoryOrder.length - 1 || _orderSaving
+                            ? theme.textMuted.withAlpha(60)
+                            : theme.textMuted,
+                        onPressed:
+                            index == _categoryOrder.length - 1 || _orderSaving ? null : () => _moveCategory(index, 'down', t),
                       ),
-                    ),
-                    Expanded(
-                      child: Center(
-                        child: Icon(LucideIcons.gripVertical, size: 16, color: theme.textMuted.withAlpha(100)),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Up/Down action buttons
-                    IconButton(
-                      icon: const Icon(LucideIcons.chevronUp, size: 16),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                      color: index == 0 || _orderSaving ? theme.textMuted.withAlpha(60) : theme.textMuted,
-                      onPressed: index == 0 || _orderSaving ? null : () => _moveCategory(index, 'up', t),
-                    ),
-                    IconButton(
-                      icon: const Icon(LucideIcons.chevronDown, size: 16),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                      color: index == _categoryOrder.length - 1 || _orderSaving
-                          ? theme.textMuted.withAlpha(60)
-                          : theme.textMuted,
-                      onPressed:
-                          index == _categoryOrder.length - 1 || _orderSaving ? null : () => _moveCategory(index, 'down', t),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             },
@@ -595,7 +672,6 @@ class _SearchTabState extends ConsumerState<SearchTab> {
                             const SizedBox(height: 6),
                             TsundokuTextField(
                               controller: _promotedLabelController,
-                              height: 38,
                               placeholder: t.tr('settingsModal.search.navCategories.titleLabelPlaceholder'),
                             ),
                           ],
@@ -614,7 +690,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
                             TsundokuSelect<String>(
                               id: 'promoted-icon',
                               width: double.infinity,
-                              height: 38,
+                              height: 36,
                               value: _newPromotedIcon,
                               options: promotedIcons.keys.map((k) => PopoverOption(value: k, label: k)).toList(),
                               onChange: (val) => setState(() => _newPromotedIcon = val),
@@ -688,7 +764,6 @@ class _SearchTabState extends ConsumerState<SearchTab> {
                   const SizedBox(height: 6),
                   TsundokuTextField(
                     controller: _promotedValueController,
-                    height: 38,
                     placeholder: t.tr('settingsModal.search.navCategories.valuePlaceholder'),
                   ),
                   const SizedBox(height: 12),
@@ -802,6 +877,10 @@ class _SearchTabState extends ConsumerState<SearchTab> {
   }
 
   Widget _buildSourcePrioritySection(I18nDictionary t, TsundokuTheme theme) {
+    final priorityEntries =
+        _sourcePriority.entries.where((e) => e.value.length > 1).toList();
+    final isTwoColumns = MediaQuery.sizeOf(context).width >= 1024;
+
     return Container(
       padding: const EdgeInsets.only(top: 20),
       decoration: const BoxDecoration(
@@ -819,166 +898,222 @@ class _SearchTabState extends ConsumerState<SearchTab> {
             t.tr('settingsModal.search.sourcePriorityHint'),
             style: TextStyle(fontSize: 12, color: theme.textMuted),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           if (_priorityLoading)
             const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()))
-          else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _sourcePriority.entries.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 16),
-              itemBuilder: (context, index) {
-                final entry = _sourcePriority.entries.elementAt(index);
-                final mediaType = entry.key;
-                final providers = entry.value;
-                if (providers.length <= 1) return const SizedBox.shrink();
-
-                return Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0x05FFFFFF),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0x1AFFFFFF)),
+          else if (isTwoColumns) ...[
+            for (int i = 0; i < priorityEntries.length; i += 2) ...[
+              if (i > 0) const SizedBox(height: 20),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _buildSourcePriorityCategoryBlock(
+                      priorityEntries[i].key,
+                      priorityEntries[i].value,
+                      t,
+                      theme,
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _categoryLabel(mediaType, t).toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.8,
-                              color: Color(0xFFA5B4FC),
-                            ),
-                          ),
-                          Text(
-                            t.tf('settingsModal.sources.providersCount', [providers.length]),
-                            style: TextStyle(fontSize: 11, color: theme.textMuted),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: providers.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 6),
-                        itemBuilder: (context, pIdx) {
-                          final provId = providers[pIdx];
-                          final isPrimary = pIdx == 0;
-                          final disabled = _isSourceDisabled(provId);
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: i + 1 < priorityEntries.length
+                        ? _buildSourcePriorityCategoryBlock(
+                            priorityEntries[i + 1].key,
+                            priorityEntries[i + 1].value,
+                            t,
+                            theme,
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ),
+            ],
+          ] else ...[
+            for (int i = 0; i < priorityEntries.length; i++) ...[
+              if (i > 0) const SizedBox(height: 20),
+              _buildSourcePriorityCategoryBlock(
+                priorityEntries[i].key,
+                priorityEntries[i].value,
+                t,
+                theme,
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
 
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: disabled ? const Color(0x05FFFFFF) : const Color(0x0FFFFFFF),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0x14FFFFFF)),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(LucideIcons.gripVertical, size: 14, color: theme.textMuted.withAlpha(100)),
-                                const SizedBox(width: 8),
-                                Container(
-                                  width: 20,
-                                  height: 20,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0x1AFFFFFF),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    '${pIdx + 1}',
-                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+  Widget _buildSourcePriorityCategoryBlock(
+    String mediaType,
+    List<String> providers,
+    I18nDictionary t,
+    TsundokuTheme theme,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(
+              _categoryLabel(mediaType, t).toUpperCase(),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.8,
+                color: Color(0xFFA5B4FC),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '· ${t.tf('settingsModal.sources.providersCount', [providers.length])}',
+              style: TextStyle(fontSize: 11, color: theme.textMuted),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ReorderableListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          buildDefaultDragHandles: false,
+          proxyDecorator: _dragProxyDecorator,
+          itemCount: providers.length,
+          onReorderItem: (oldIndex, newIndex) =>
+              _reorderSourcePriority(mediaType, oldIndex, newIndex, t),
+          itemBuilder: (context, pIdx) {
+            final provId = providers[pIdx];
+            final isPrimary = pIdx == 0;
+            final disabled = _isSourceDisabled(provId);
+
+            return Padding(
+              key: ValueKey('prio-$mediaType-$provId'),
+              padding: EdgeInsets.only(bottom: pIdx == providers.length - 1 ? 0 : 6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: disabled ? const Color(0x05FFFFFF) : const Color(0x0FFFFFFF),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0x14FFFFFF)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ReorderableDragStartListener(
+                        index: pIdx,
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.grab,
+                          child: Row(
+                            children: [
+                              Icon(
+                                LucideIcons.gripVertical,
+                                size: 14,
+                                color: theme.textMuted.withAlpha(140),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: const Color(0x1AFFFFFF),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '${pIdx + 1}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: theme.sourceTheme(provId).accent,
-                                    shape: BoxShape.circle,
-                                  ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: theme.sourceTheme(provId).accent,
+                                  shape: BoxShape.circle,
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
                                   _getSourceName(provId),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     color: disabled ? theme.textMuted : Colors.white,
                                   ),
                                 ),
-                                if (disabled) ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0x2671717A), // zinc-500/15
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      t.tr('settingsModal.sources.disabledBadge'),
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                        color: Color(0xFFA1A1AA), // zinc-400
-                                      ),
+                              ),
+                              if (disabled) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0x2671717A), // zinc-500/15
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    t.tr('settingsModal.sources.disabledBadge'),
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFFA1A1AA), // zinc-400
                                     ),
                                   ),
-                                ],
-                                const SizedBox(width: 8),
-                                if (isPrimary)
-                                  TsundokuBadge(
-                                    tone: BadgeTone.success,
-                                    size: BadgeSize.xs,
-                                    child: Text(t.tr('settingsModal.search.primary')),
-                                  )
-                                else
-                                  TsundokuBadge(
-                                    tone: BadgeTone.neutral,
-                                    size: BadgeSize.xs,
-                                    child: Text(t.tf('settingsModal.search.fallback', [pIdx + 1])),
-                                  ),
-                                const Spacer(),
-                                IconButton(
-                                  icon: const Icon(LucideIcons.chevronUp, size: 14),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                  color: pIdx == 0 || _prioritySaving ? theme.textMuted.withAlpha(60) : theme.textMuted,
-                                  onPressed: pIdx == 0 || _prioritySaving
-                                      ? null
-                                      : () => _moveSourcePriority(mediaType, pIdx, 'up', t),
-                                ),
-                                IconButton(
-                                  icon: const Icon(LucideIcons.chevronDown, size: 14),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                  color: pIdx == providers.length - 1 || _prioritySaving
-                                      ? theme.textMuted.withAlpha(60)
-                                      : theme.textMuted,
-                                  onPressed: pIdx == providers.length - 1 || _prioritySaving
-                                      ? null
-                                      : () => _moveSourcePriority(mediaType, pIdx, 'down', t),
                                 ),
                               ],
-                            ),
-                          );
-                        },
+                              const SizedBox(width: 8),
+                              if (isPrimary)
+                                TsundokuBadge(
+                                  tone: BadgeTone.success,
+                                  size: BadgeSize.xs,
+                                  child: Text(t.tr('settingsModal.search.primary')),
+                                )
+                              else
+                                TsundokuBadge(
+                                  tone: BadgeTone.neutral,
+                                  size: BadgeSize.xs,
+                                  child: Text(t.tf('settingsModal.search.fallback', [pIdx + 1])),
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ],
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(LucideIcons.chevronUp, size: 14),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                      color: pIdx == 0 || _prioritySaving ? theme.textMuted.withAlpha(60) : theme.textMuted,
+                      onPressed: pIdx == 0 || _prioritySaving
+                          ? null
+                          : () => _moveSourcePriority(mediaType, pIdx, 'up', t),
+                    ),
+                    IconButton(
+                      icon: const Icon(LucideIcons.chevronDown, size: 14),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                      color: pIdx == providers.length - 1 || _prioritySaving
+                          ? theme.textMuted.withAlpha(60)
+                          : theme.textMuted,
+                      onPressed: pIdx == providers.length - 1 || _prioritySaving
+                          ? null
+                          : () => _moveSourcePriority(mediaType, pIdx, 'down', t),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }

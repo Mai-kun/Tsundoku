@@ -202,4 +202,52 @@ void main() {
     final deleteData = (deletePutReq.data as Map)['categories'] as List;
     expect(deleteData.any((c) => (c as Map)['id'] == 'light-novels'), isFalse);
   });
+
+  testWidgets('SearchTab supports drag-and-drop on category order and source priority with 2-column layout', (tester) async {
+    final adapter = _CapturingAdapter();
+    tester.view.physicalSize = const Size(1440, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_buildSubject(adapter: adapter));
+    await tester.pumpAndSettle();
+
+    // 2-column check: "АНИМЕ" and "МАНГА" category headers share the same vertical row
+    final animeHeader = find.text('АНИМЕ');
+    final mangaHeader = find.text('МАНГА');
+    expect(animeHeader, findsOneWidget);
+    expect(mangaHeader, findsOneWidget);
+    expect(tester.getTopLeft(animeHeader).dy, closeTo(tester.getTopLeft(mangaHeader).dy, 2.0));
+    expect(tester.getTopLeft(mangaHeader).dx, greaterThan(tester.getTopLeft(animeHeader).dx));
+
+    // Drag first category ("Аниме") down below second ("Манга") using grip handle
+    final firstGrip = find.byIcon(LucideIcons.gripVertical).first;
+    await tester.drag(firstGrip, const Offset(0, 65));
+    await tester.pumpAndSettle();
+
+    final catPut = adapter.requests.lastWhere(
+      (r) => r.path.contains('/api/settings/category-order') && r.method == 'PUT',
+    );
+    final catOrder = catPut.data as List;
+    expect(catOrder[0], 'manga');
+    expect(catOrder[1], 'anime');
+
+    // Drag first source priority item ("Shikimori") down onto "AniList"
+    final shikiCenter = tester.getCenter(find.text('Shikimori'));
+    final anilistCenter = tester.getCenter(find.text('AniList').first);
+    await tester.timedDrag(
+      find.text('Shikimori'),
+      Offset(0, (anilistCenter.dy - shikiCenter.dy) + 12),
+      const Duration(milliseconds: 300),
+    );
+    await tester.pumpAndSettle();
+
+    final prioPut = adapter.requests.lastWhere(
+      (r) => r.path.contains('/api/settings/source-priority') && r.method == 'PUT',
+    );
+    final prioMap = prioPut.data as Map;
+    expect((prioMap['anime'] as List)[0], 'anilist');
+    expect((prioMap['anime'] as List)[1], 'shikimori');
+  });
 }

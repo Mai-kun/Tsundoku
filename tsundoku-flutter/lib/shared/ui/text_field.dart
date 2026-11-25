@@ -145,9 +145,10 @@ class _TsundokuTextFieldState extends State<TsundokuTextField> {
           color: th.textPrimary,
           fontWeight: FontWeight.w400,
         );
+    final double effectiveFontSize = textStyle.fontSize ?? 13.0;
 
     final hintStyle = TextStyle(
-      fontSize: textStyle.fontSize ?? 13,
+      fontSize: effectiveFontSize,
       color: th.textMuted.withAlpha(153), // text-muted/60
       fontWeight: FontWeight.w400,
     );
@@ -175,10 +176,18 @@ class _TsundokuTextFieldState extends State<TsundokuTextField> {
       onChanged: widget.onChanged,
       onSubmitted: widget.onSubmitted,
       style: textStyle,
+      strutStyle: widget.multiline
+          ? null
+          : StrutStyle(
+              fontSize: effectiveFontSize,
+              height: 1.1,
+              forceStrutHeight: true,
+            ),
       textAlignVertical:
           widget.multiline ? TextAlignVertical.top : TextAlignVertical.center,
       cursorColor: th.accent,
       decoration: InputDecoration(
+        isDense: widget.isDense,
         isCollapsed: true,
         border: InputBorder.none,
         enabledBorder: InputBorder.none,
@@ -194,6 +203,8 @@ class _TsundokuTextFieldState extends State<TsundokuTextField> {
       ),
     );
 
+    final Widget alignedField =
+        widget.multiline ? field : Center(child: field);
     final bool hasAffixes = widget.prefixIcon != null || widget.suffix != null;
     final Widget innerContent = hasAffixes
         ? Row(
@@ -205,14 +216,21 @@ class _TsundokuTextFieldState extends State<TsundokuTextField> {
                 widget.prefixIcon!,
                 const SizedBox(width: 8),
               ],
-              Expanded(child: field),
+              Expanded(child: alignedField),
               if (widget.suffix != null) ...[
                 const SizedBox(width: 8),
                 widget.suffix!,
               ],
             ],
           )
-        : field;
+        : (widget.multiline
+            ? field
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: alignedField),
+                ],
+              ));
 
     return MouseRegion(
       cursor: widget.enabled

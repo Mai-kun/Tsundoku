@@ -118,4 +118,33 @@ void main() {
     final focusedDecoration = focusedContainer.decoration! as BoxDecoration;
     expect((focusedDecoration.border! as Border).top.color, TsundokuTheme.obsidian.accent);
   });
+
+  testWidgets('TsundokuTextField: EditableText and placeholder are strictly vertically centered within 36px field',
+      (tester) async {
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(MaterialApp(
+      theme: buildTsundokuTheme(),
+      home: Scaffold(
+        body: Center(
+          child: TsundokuTextField(
+            controller: controller,
+            width: 280,
+            placeholder: 'http://127.0.0.1:7890',
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    final fieldCenterY = tester.getCenter(find.byType(TsundokuTextField)).dy;
+    final editableCenterY = tester.getCenter(find.byType(EditableText)).dy;
+    expect((editableCenterY - fieldCenterY).abs(), lessThan(0.5));
+
+    await tester.enterText(find.byType(TextField), 'socks5://127.0.0.1:1080');
+    await tester.pumpAndSettle();
+    final filledEditableCenterY = tester.getCenter(find.byType(EditableText)).dy;
+    expect((filledEditableCenterY - fieldCenterY).abs(), lessThan(0.5));
+  });
 }

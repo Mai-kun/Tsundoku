@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tsundoku_flutter/shared/platform/trailer_player.dart';
 import 'package:tsundoku_flutter/widgets/media-detail/sections/trailer_section.dart';
 
 /// Тесты `TrailerSection.svelte`: превью с Play, отсутствие трейлера →
@@ -62,11 +63,45 @@ void main() {
     );
   });
 
-  testWidgets('tap Play → тап не роняет дерево (URL уходит в фасад #48)',
+  testWidgets('tap Play → открывает встроенный плеер и кнопку ↗ без падений',
       (tester) async {
     await pumpWithTrailer(tester, 'dQw4w9WgXcQ');
+    expect(find.byIcon(LucideIcons.arrowUpRight), findsOneWidget);
     await tester.tap(find.byIcon(LucideIcons.play));
     await tester.pump();
+    await tester.pump();
+    expect(find.byType(EmbeddedTrailerPlayer), findsOneWidget);
+    expect(find.byIcon(LucideIcons.arrowUpRight), findsAtLeastNWidgets(1));
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('age-gate ошибка автоматически вызывает внешний fallback',
+      (tester) async {
+    var opened = false;
+
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(MaterialApp(
+      home: Material(
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: EmbeddedTrailerPlayer(
+            videoId: 'dQw4w9WgXcQ',
+            title: 'Тайтл',
+            onOpenExternal: () => opened = true,
+            streamResolver: (_) async {
+              throw Exception('Sign in to confirm your age');
+            },
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(opened, isTrue);
+    expect(find.text('Видео защищено возрастным ограничением'), findsOneWidget);
+    expect(find.text('Открыть в браузере'), findsOneWidget);
   });
 }

@@ -4,10 +4,10 @@ import 'package:material_ui/material_ui.dart';
 import '../theme/tsundoku_tokens.dart';
 
 /// Unified text input component adhering 1:1 to Svelte styling:
-/// - Single-line default: 36px height, font-size 13px, padding (12px, 8px)
+/// - Single-line default: 36px height (= ButtonSize.md), font-size 13px, horizontal padding 12px
 /// - Background #0f1219 (bg-field)
-/// - Subtle border white/10 (0x1AFFFFFF), radius 8px
-/// - Placeholder text-muted/60, focus border accent/60
+/// - Border painted on the outer Container (`borderSubtle` idle, `accent` focused), radius 8px
+/// - Collapsed inner TextField (0px InputDecorator inset)
 /// - Supports prefixIcon, suffix, obscureText, multiline, width, height.
 class TsundokuTextField extends StatefulWidget {
   final TextEditingController? controller;
@@ -71,9 +71,31 @@ class TsundokuTextField extends StatefulWidget {
 
 class _TsundokuTextFieldState extends State<TsundokuTextField> {
   TextEditingController? _internalController;
+  FocusNode? _internalFocusNode;
+  bool _isFocused = false;
 
   TextEditingController get _effectiveController =>
-      widget.controller ?? (_internalController ??= TextEditingController(text: widget.initialValue ?? ''));
+      widget.controller ??
+      (_internalController ??=
+          TextEditingController(text: widget.initialValue ?? ''));
+
+  FocusNode get _effectiveFocusNode =>
+      widget.focusNode ?? (_internalFocusNode ??= FocusNode());
+
+  @override
+  void initState() {
+    super.initState();
+    _isFocused = _effectiveFocusNode.hasFocus;
+    _effectiveFocusNode.addListener(_handleFocusChange);
+  }
+
+  void _handleFocusChange() {
+    if (!mounted) return;
+    final focused = _effectiveFocusNode.hasFocus;
+    if (focused != _isFocused) {
+      setState(() => _isFocused = focused);
+    }
+  }
 
   @override
   void didUpdateWidget(TsundokuTextField oldWidget) {
@@ -83,10 +105,22 @@ class _TsundokuTextFieldState extends State<TsundokuTextField> {
         widget.initialValue != oldWidget.initialValue) {
       _effectiveController.text = widget.initialValue!;
     }
+    if (widget.focusNode != oldWidget.focusNode) {
+      final oldNode = oldWidget.focusNode ?? _internalFocusNode;
+      oldNode?.removeListener(_handleFocusChange);
+      if (widget.focusNode != null) {
+        _internalFocusNode?.dispose();
+        _internalFocusNode = null;
+      }
+      _effectiveFocusNode.addListener(_handleFocusChange);
+      _isFocused = _effectiveFocusNode.hasFocus;
+    }
   }
 
   @override
   void dispose() {
+    _effectiveFocusNode.removeListener(_handleFocusChange);
+    _internalFocusNode?.dispose();
     _internalController?.dispose();
     super.dispose();
   }
@@ -95,26 +129,15 @@ class _TsundokuTextFieldState extends State<TsundokuTextField> {
   Widget build(BuildContext context) {
     final th = TsundokuTheme.of(context);
     final effectiveHeight = widget.multiline ? null : (widget.height ?? 36.0);
-    final verticalPadding = effectiveHeight == null || effectiveHeight == 36.0
-        ? 8.0
-        : ((effectiveHeight - 20.0) / 2).clamp(4.0, 24.0);
 
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: const BorderSide(color: Color(0x1AFFFFFF)), // white/10
-    );
-
-    final focusedBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: BorderSide(
-        color: th.accent.withAlpha(153), // accent/60
-      ),
-    );
-
-    final disabledBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: const BorderSide(color: Color(0x0DFFFFFF)),
-    );
+    final Color borderColor;
+    if (!widget.enabled) {
+      borderColor = const Color(0x0DFFFFFF);
+    } else if (_isFocused) {
+      borderColor = th.accent;
+    } else {
+      borderColor = th.borderSubtle;
+    }
 
     final textStyle = widget.style ??
         TextStyle(
@@ -124,14 +147,14 @@ class _TsundokuTextFieldState extends State<TsundokuTextField> {
         );
 
     final hintStyle = TextStyle(
-      fontSize: 13,
+      fontSize: textStyle.fontSize ?? 13,
       color: th.textMuted.withAlpha(153), // text-muted/60
       fontWeight: FontWeight.w400,
     );
 
-    Widget field = TextField(
+    final Widget field = TextField(
       controller: _effectiveController,
-      focusNode: widget.focusNode,
+      focusNode: _effectiveFocusNode,
       autofocus: widget.autofocus,
       enabled: widget.enabled,
       readOnly: widget.readOnly,
@@ -156,50 +179,71 @@ class _TsundokuTextFieldState extends State<TsundokuTextField> {
           widget.multiline ? TextAlignVertical.top : TextAlignVertical.center,
       cursorColor: th.accent,
       decoration: InputDecoration(
-        isDense: widget.isDense,
-        filled: true,
+        isCollapsed: true,
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        disabledBorder: InputBorder.none,
+        errorBorder: InputBorder.none,
+        focusedErrorBorder: InputBorder.none,
+        filled: false,
+        contentPadding: EdgeInsets.zero,
         counterText: '',
-        constraints: effectiveHeight != null
-            ? BoxConstraints(
-                minHeight: effectiveHeight,
-                maxHeight: effectiveHeight,
-              )
-            : null,
-        fillColor: const Color(0xFF0F1219), // #0f1219 / bg-field
         hintText: widget.placeholder,
         hintStyle: hintStyle,
-        contentPadding: widget.contentPadding ??
-            EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: verticalPadding,
-            ),
-        prefixIcon: widget.prefixIcon,
-        prefixIconConstraints: BoxConstraints(
-          minWidth: 32,
-          minHeight: effectiveHeight ?? 0,
-          maxHeight: effectiveHeight ?? 36,
-        ),
-        suffixIcon: widget.suffix,
-        suffixIconConstraints: BoxConstraints(
-          minWidth: 32,
-          minHeight: effectiveHeight ?? 0,
-          maxHeight: effectiveHeight ?? 36,
-        ),
-        border: border,
-        enabledBorder: border,
-        focusedBorder: focusedBorder,
-        disabledBorder: disabledBorder,
       ),
     );
 
-    if (widget.width != null || effectiveHeight != null) {
-      field = SizedBox(
-        width: widget.width,
-        height: effectiveHeight,
-        child: field,
-      );
-    }
+    final bool hasAffixes = widget.prefixIcon != null || widget.suffix != null;
+    final Widget innerContent = hasAffixes
+        ? Row(
+            crossAxisAlignment: widget.multiline
+                ? CrossAxisAlignment.start
+                : CrossAxisAlignment.center,
+            children: [
+              if (widget.prefixIcon != null) ...[
+                widget.prefixIcon!,
+                const SizedBox(width: 8),
+              ],
+              Expanded(child: field),
+              if (widget.suffix != null) ...[
+                const SizedBox(width: 8),
+                widget.suffix!,
+              ],
+            ],
+          )
+        : field;
 
-    return field;
+    return MouseRegion(
+      cursor: widget.enabled
+          ? SystemMouseCursors.text
+          : SystemMouseCursors.basic,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: widget.enabled && !widget.readOnly
+            ? () {
+                if (!_effectiveFocusNode.hasFocus) {
+                  _effectiveFocusNode.requestFocus();
+                }
+              }
+            : null,
+        child: Container(
+          width: widget.width,
+          height: effectiveHeight,
+          alignment: widget.multiline ? Alignment.topLeft : Alignment.center,
+          padding: widget.contentPadding ??
+              EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: widget.multiline ? 10 : 0,
+              ),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F1219), // #0f1219 / bg-field
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: borderColor),
+          ),
+          child: innerContent,
+        ),
+      ),
+    );
   }
 }

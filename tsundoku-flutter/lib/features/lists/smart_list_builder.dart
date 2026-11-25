@@ -284,7 +284,7 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                         filled: true,
                         fillColor: const Color(0xFF0F1219),
                         constraints:
-                            const BoxConstraints(minHeight: 38, maxHeight: 38),
+                            const BoxConstraints(minHeight: 36, maxHeight: 36),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 8,
@@ -347,16 +347,12 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                     const SizedBox(height: 6),
                     TsundokuTextField(
                       controller: _minScoreController,
-                      height: 38,
                       keyboardType: TextInputType.number,
                       placeholder: '1–10',
-                      prefixIcon: const Padding(
-                        padding: EdgeInsets.only(left: 10, right: 6),
-                        child: Icon(
-                          LucideIcons.star,
-                          size: 14,
-                          color: Color(0xFF94A3B8),
-                        ),
+                      prefixIcon: const Icon(
+                        LucideIcons.star,
+                        size: 14,
+                        color: Color(0xFF94A3B8),
                       ),
                       onChanged: (val) {
                         final parsed = int.tryParse(val.trim());
@@ -387,16 +383,12 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                     const SizedBox(height: 6),
                     TsundokuTextField(
                       controller: _minRatingController,
-                      height: 38,
                       keyboardType: TextInputType.number,
                       placeholder: '0–10',
-                      prefixIcon: const Padding(
-                        padding: EdgeInsets.only(left: 10, right: 6),
-                        child: Icon(
-                          LucideIcons.star,
-                          size: 14,
-                          color: Color(0xFF94A3B8),
-                        ),
+                      prefixIcon: const Icon(
+                        LucideIcons.star,
+                        size: 14,
+                        color: Color(0xFF94A3B8),
                       ),
                       onChanged: (val) {
                         final parsed = double.tryParse(val.trim());
@@ -547,7 +539,6 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                         const SizedBox(height: 6),
                         TsundokuTextField(
                           controller: _yearFromController,
-                          height: 38,
                           keyboardType: TextInputType.number,
                           placeholder: '2000',
                           onChanged: (val) {
@@ -579,7 +570,6 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                         const SizedBox(height: 6),
                         TsundokuTextField(
                           controller: _yearToController,
-                          height: 38,
                           keyboardType: TextInputType.number,
                           placeholder: '2024',
                           onChanged: (val) {
@@ -608,15 +598,11 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                   const SizedBox(height: 6),
                   TsundokuTextField(
                     controller: _creatorController,
-                    height: 38,
                     placeholder: t.tr('views.smartCreatorPlaceholder'),
-                    prefixIcon: const Padding(
-                      padding: EdgeInsets.only(left: 10, right: 6),
-                      child: Icon(
-                        LucideIcons.search,
-                        size: 14,
-                        color: Color(0xFF94A3B8),
-                      ),
+                    prefixIcon: const Icon(
+                      LucideIcons.search,
+                      size: 14,
+                      color: Color(0xFF94A3B8),
                     ),
                     onChanged: (val) {
                       widget.onQueryChange(widget.query.copyWith(
@@ -659,7 +645,7 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                         filled: true,
                         fillColor: const Color(0xFF0F1219),
                         constraints:
-                            const BoxConstraints(minHeight: 38, maxHeight: 38),
+                            const BoxConstraints(minHeight: 36, maxHeight: 36),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 8,
@@ -717,7 +703,7 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                         filled: true,
                         fillColor: const Color(0xFF0F1219),
                         constraints:
-                            const BoxConstraints(minHeight: 38, maxHeight: 38),
+                            const BoxConstraints(minHeight: 36, maxHeight: 36),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 8,
@@ -766,7 +752,6 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                     const SizedBox(height: 6),
                     TsundokuTextField(
                       controller: _limitController,
-                      height: 38,
                       keyboardType: TextInputType.number,
                       placeholder: '50',
                       onChanged: (val) {
@@ -891,18 +876,11 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
         const SizedBox(height: 6),
         TsundokuTextField(
           controller: controller,
-          height: 38,
           keyboardType: TextInputType.number,
           placeholder: hint,
-          suffix: Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: Center(
-              widthFactor: 1.0,
-              child: Text(
-                unit,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-              ),
-            ),
+          suffix: Text(
+            unit,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
           ),
           onChanged: onChanged,
         ),

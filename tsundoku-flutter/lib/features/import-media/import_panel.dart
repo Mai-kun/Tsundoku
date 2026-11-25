@@ -147,6 +147,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
     super.initState();
     _loadListsAndSources();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ref.read(mangalibAuthProvider.notifier).readMangalibStatus();
     });
   }
@@ -992,47 +993,38 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
         ),
         const SizedBox(height: 12),
         if (_anilistMode == 'profile') ...[
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0x80181E2C), // bg-card/50
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withAlpha(20)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  t.tr('importModal.anilistUsername'),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: theme.textSecondary,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                t.tr('importModal.anilistUsername'),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: theme.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: TsundokuTextField(
+                      controller: _anilistUsernameController,
+                      onSubmitted: (_) => _runImport(),
+                      placeholder: t.tr('importModal.anilistUsernamePlaceholder'),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TsundokuTextField(
-                        controller: _anilistUsernameController,
-                        height: 38,
-                        onSubmitted: (_) => _runImport(),
-                        placeholder: t.tr('importModal.anilistUsernamePlaceholder'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    TsundokuButton(
-                      variant: ButtonVariant.primary,
-                      size: ButtonSize.md,
-                      onPressed: _busy ? null : _runImport,
-                      loading: _busy,
-                      child: Text(t.tr('importModal.import')),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  const SizedBox(width: 8),
+                  TsundokuButton(
+                    variant: ButtonVariant.primary,
+                    size: ButtonSize.md,
+                    onPressed: _busy ? null : _runImport,
+                    loading: _busy,
+                    child: Text(t.tr('importModal.import')),
+                  ),
+                ],
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Text(
@@ -1117,7 +1109,6 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                 const SizedBox(height: 6),
                 TsundokuTextField(
                   controller: _steamProfileController,
-                  height: 38,
                   placeholder:
                       'https://steamcommunity.com/id/... or 76561198...',
                 ),
@@ -1133,7 +1124,6 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                 const SizedBox(height: 6),
                 TsundokuTextField(
                   controller: _steamApiKeyController,
-                  height: 38,
                   obscureText: true,
                   placeholder: _steamKeyConfigured
                       ? 'Ключ уже сохранён на сервере'
@@ -1281,7 +1271,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                       crossAxisCount: cols,
                       crossAxisSpacing: 8,
                       mainAxisSpacing: 8,
-                      mainAxisExtent: 44,
+                      mainAxisExtent: 52,
                     ),
                     itemBuilder: (context, index) {
                       final site = _socialLibSites[index];
@@ -1574,7 +1564,6 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                     Expanded(
                       child: TsundokuTextField(
                         controller: _mangalibProfileController,
-                        height: 38,
                         placeholder: mangalibAuth.userId.isNotEmpty
                             ? mangalibAuth.userId
                             : '123456 · https://mangalib.org/ru/users/123456',
@@ -2033,7 +2022,6 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                     const SizedBox(height: 6),
                     TsundokuTextField(
                       controller: _newListNameController,
-                      height: 38,
                       placeholder: t.tf('importModal.defaultList', [_provider.label]),
                     ),
                   ] else ...[
@@ -2053,7 +2041,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                           fontSize: 13, color: Colors.white),
                       decoration: InputDecoration(
                         constraints: const BoxConstraints(
-                            minHeight: 38, maxHeight: 38),
+                            minHeight: 36, maxHeight: 36),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 8),
                         filled: true,

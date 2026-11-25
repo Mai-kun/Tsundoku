@@ -316,7 +316,6 @@ class _CreateListModalState extends ConsumerState<CreateListModal> {
                     const SizedBox(height: 6),
                     TsundokuTextField(
                       controller: _nameController,
-                      height: 38,
                       maxLength: 100,
                       placeholder: t.tr('views.listName'),
                       onChanged: (_) => setState(() {}),

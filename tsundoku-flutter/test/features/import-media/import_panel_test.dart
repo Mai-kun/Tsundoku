@@ -255,4 +255,50 @@ void main() {
 
     expect(find.text('Название нового списка'), findsOneWidget);
   });
+
+  testWidgets('switches across all providers and modes without errors',
+      (tester) async {
+    await _pumpSubject(tester);
+
+    // AniList: switch profile -> file -> profile
+    await tester.tap(find.text('Загрузить JSON-файл'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('По никнейму профиля'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    // MangaLib: collector -> file -> collector
+    await tester.tap(find.text('MangaLib'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Файл .json / .csv'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Мгновенный сборщик закладок'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    // Steam: profile -> file
+    await tester.tap(find.text('Steam'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Файл'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    // Remaining file providers
+    for (final label in [
+      'MyAnimeList',
+      'Shikimori',
+      'Letterboxd',
+      'Goodreads',
+      'Anixart',
+      'Свой файл',
+    ]) {
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    }
+  });
 }

@@ -187,16 +187,18 @@ void main() {
       (tester) async {
     await pumpHome(tester);
     final searchFieldFinder = find.byType(TsundokuTextField);
-    final inputDecoratorFinder = find.descendant(
+    final searchContainerFinder = find.descendant(
       of: searchFieldFinder,
-      matching: find.byType(InputDecorator),
-    );
+      matching: find.byType(Container),
+    ).first;
     final randomButtonFinder = find.ancestor(
       of: find.byIcon(LucideIcons.dices),
       matching: find.byType(Container),
     ).first;
-    final searchRect = tester.getRect(inputDecoratorFinder);
+    final fieldRect = tester.getRect(searchFieldFinder);
+    final searchRect = tester.getRect(searchContainerFinder);
     final buttonRect = tester.getRect(randomButtonFinder);
+    expect(fieldRect, searchRect);
     expect(searchRect.height, 36.0);
     expect(searchRect.top, buttonRect.top);
     expect(searchRect.bottom, buttonRect.bottom);

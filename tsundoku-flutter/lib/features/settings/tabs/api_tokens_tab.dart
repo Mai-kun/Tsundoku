@@ -143,7 +143,6 @@ class _ApiTokensTabState extends ConsumerState<ApiTokensTab> {
                     const SizedBox(height: 6),
                     TsundokuTextField(
                       controller: nameController,
-                      height: 38,
                       onChanged: (_) => setDialogState(() {}),
                       placeholder: t.tr('settingsModal.apiTokens.namePlaceholder'),
                     ),
@@ -157,7 +156,6 @@ class _ApiTokensTabState extends ConsumerState<ApiTokensTab> {
                     const SizedBox(height: 6),
                     TsundokuTextField(
                       controller: daysController,
-                      height: 38,
                       keyboardType: TextInputType.number,
                       placeholder: t.tr('settingsModal.apiTokens.expiresInDaysPlaceholder'),
                     ),

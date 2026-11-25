@@ -380,7 +380,6 @@ class _CreateGoalModalState extends ConsumerState<CreateGoalModal> {
                   const SizedBox(height: 6),
                   TsundokuTextField(
                     controller: _titleController,
-                    height: 38,
                     maxLength: 120,
                     placeholder: '🎯',
                   ),
@@ -404,7 +403,6 @@ class _CreateGoalModalState extends ConsumerState<CreateGoalModal> {
                             const SizedBox(height: 6),
                             TsundokuTextField(
                               controller: _yearController,
-                              height: 38,
                               keyboardType: TextInputType.number,
                             ),
                           ],
@@ -426,7 +424,6 @@ class _CreateGoalModalState extends ConsumerState<CreateGoalModal> {
                             const SizedBox(height: 6),
                             TsundokuTextField(
                               controller: _targetController,
-                              height: 38,
                               keyboardType: TextInputType.number,
                             ),
                           ],
@@ -454,7 +451,7 @@ class _CreateGoalModalState extends ConsumerState<CreateGoalModal> {
                             const SizedBox(height: 6),
                             TsundokuSelect<String>(
                               id: 'goal-category',
-                              height: 38,
+                              height: 36,
                               options: categoryOptions,
                               value: _category,
                               onChange: (next) =>
@@ -479,7 +476,6 @@ class _CreateGoalModalState extends ConsumerState<CreateGoalModal> {
                             const SizedBox(height: 6),
                             TsundokuTextField(
                               controller: _iconController,
-                              height: 38,
                               maxLength: 8,
                             ),
                           ],
@@ -501,7 +497,6 @@ class _CreateGoalModalState extends ConsumerState<CreateGoalModal> {
                   const SizedBox(height: 6),
                   TsundokuTextField(
                     controller: _descriptionController,
-                    height: 38,
                     maxLength: 300,
                   ),
                 ],

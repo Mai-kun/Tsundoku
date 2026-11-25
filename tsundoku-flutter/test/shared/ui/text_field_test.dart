@@ -1,12 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:tsundoku_flutter/shared/theme/tsundoku_theme.dart';
+import 'package:tsundoku_flutter/shared/theme/tsundoku_tokens.dart';
 import 'package:tsundoku_flutter/shared/ui/text_field.dart';
 
 void main() {
-  testWidgets('TsundokuTextField: renders with default 36px height and fontSize 13', (tester) async {
+  testWidgets('TsundokuTextField: renders with default 36px height, collapsed InputDecoration, and 0px inset', (tester) async {
     final controller = TextEditingController(text: 'Initial');
 
     await tester.pumpWidget(MaterialApp(
+      theme: buildTsundokuTheme(),
       home: Scaffold(
         body: Center(
           child: TsundokuTextField(
@@ -19,13 +22,20 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    final sizedBoxFinder = find.byType(SizedBox).first;
-    final sizedBox = tester.widget<SizedBox>(sizedBoxFinder);
-    expect(sizedBox.height, 36.0);
+    final fieldRect = tester.getRect(find.byType(TsundokuTextField));
+    final containerRect = tester.getRect(find.descendant(
+      of: find.byType(TsundokuTextField),
+      matching: find.byType(Container),
+    ).first);
+    expect(fieldRect.height, 36.0);
+    expect(containerRect, fieldRect);
 
     final textField = tester.widget<TextField>(find.byType(TextField));
     expect(textField.style?.fontSize, 13);
-    expect(textField.decoration?.contentPadding, const EdgeInsets.symmetric(horizontal: 12, vertical: 8));
+    expect(textField.decoration?.isCollapsed, isTrue);
+    expect(textField.decoration?.border, InputBorder.none);
+    expect(textField.decoration?.contentPadding, EdgeInsets.zero);
+    expect(textField.textAlignVertical, TextAlignVertical.center);
 
     // Test text editing
     await tester.enterText(find.byType(TextField), 'Updated text');
@@ -33,8 +43,9 @@ void main() {
   });
 
   testWidgets('TsundokuTextField: multiline removes fixed height constraint', (tester) async {
-    await tester.pumpWidget(const MaterialApp(
-      home: Scaffold(
+    await tester.pumpWidget(MaterialApp(
+      theme: buildTsundokuTheme(),
+      home: const Scaffold(
         body: Center(
           child: TsundokuTextField(
             multiline: true,
@@ -49,11 +60,13 @@ void main() {
     final textField = tester.widget<TextField>(find.byType(TextField));
     expect(textField.minLines, 3);
     expect(textField.maxLines, null);
+    expect(tester.getRect(find.byType(TsundokuTextField)).height, greaterThan(36.0));
   });
 
   testWidgets('TsundokuTextField: prefixIcon and suffix render properly', (tester) async {
-    await tester.pumpWidget(const MaterialApp(
-      home: Scaffold(
+    await tester.pumpWidget(MaterialApp(
+      theme: buildTsundokuTheme(),
+      home: const Scaffold(
         body: TsundokuTextField(
           prefixIcon: Icon(Icons.search, key: Key('prefix-search')),
           suffix: Icon(Icons.clear, key: Key('suffix-clear')),
@@ -67,13 +80,18 @@ void main() {
     expect(find.byKey(const Key('suffix-clear')), findsOneWidget);
   });
 
-  testWidgets('TsundokuTextField: custom 40px height constrains InputDecoration container',
+  testWidgets('TsundokuTextField: custom 40px height paints outer Container border with 0px inset and updates on focus',
       (tester) async {
-    await tester.pumpWidget(const MaterialApp(
+    final focusNode = FocusNode();
+    addTearDown(focusNode.dispose);
+
+    await tester.pumpWidget(MaterialApp(
+      theme: buildTsundokuTheme(),
       home: Scaffold(
         body: Center(
           child: TsundokuTextField(
             height: 40,
+            focusNode: focusNode,
             placeholder: 'Search...',
           ),
         ),
@@ -82,19 +100,22 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    final textField = tester.widget<TextField>(find.byType(TextField));
-    expect(
-      textField.decoration?.constraints,
-      const BoxConstraints(minHeight: 40, maxHeight: 40),
-    );
-    expect(textField.textAlignVertical, TextAlignVertical.center);
-    expect(tester.getRect(find.byType(InputDecorator)).height, 40.0);
-    expect(
-      find.byType(InputDecorator),
-      paints
-        ..rrect(
-          rrect: RRect.fromLTRBR(0, 0, 800, 40, const Radius.circular(8)),
-        ),
-    );
+    expect(tester.getRect(find.byType(TsundokuTextField)).height, 40.0);
+
+    final containerFinder = find.descendant(
+      of: find.byType(TsundokuTextField),
+      matching: find.byType(Container),
+    ).first;
+    final idleContainer = tester.widget<Container>(containerFinder);
+    final idleDecoration = idleContainer.decoration! as BoxDecoration;
+    expect(idleDecoration.color, const Color(0xFF0F1219));
+    expect((idleDecoration.border! as Border).top.color, TsundokuTheme.obsidian.borderSubtle);
+
+    focusNode.requestFocus();
+    await tester.pumpAndSettle();
+
+    final focusedContainer = tester.widget<Container>(containerFinder);
+    final focusedDecoration = focusedContainer.decoration! as BoxDecoration;
+    expect((focusedDecoration.border! as Border).top.color, TsundokuTheme.obsidian.accent);
   });
 }

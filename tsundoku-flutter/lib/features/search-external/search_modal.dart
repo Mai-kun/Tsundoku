@@ -1113,33 +1113,27 @@ class _SearchModalState extends ConsumerState<SearchModal> {
                               color: Color(0xFF94A3B8),
                             ),
                             suffix: badge != null
-                                ? Padding(
-                                    padding: const EdgeInsets.only(right: 8.0),
-                                    child: Align(
-                                      alignment: Alignment.centerRight,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0x0FFFFFFF),
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                          border: Border.all(
-                                            color: const Color(0x1AFFFFFF),
-                                          ),
-                                        ),
-                                        child: Text(
-                                          badge.type == QueryBadgeType.link
-                                              ? t.tr('searchModal.badgeLink')
-                                              : t.tr('searchModal.badgeIsbn'),
-                                          style: const TextStyle(
-                                            fontSize: 10,
-                                            fontFamily: 'monospace',
-                                            color: Color(0xB3FFFFFF),
-                                          ),
-                                        ),
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0x0FFFFFFF),
+                                      borderRadius:
+                                          BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: const Color(0x1AFFFFFF),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      badge.type == QueryBadgeType.link
+                                          ? t.tr('searchModal.badgeLink')
+                                          : t.tr('searchModal.badgeIsbn'),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontFamily: 'monospace',
+                                        color: Color(0xB3FFFFFF),
                                       ),
                                     ),
                                   )

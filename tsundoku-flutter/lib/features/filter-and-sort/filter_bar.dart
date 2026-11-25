@@ -427,13 +427,10 @@ class _SearchFieldState extends State<_SearchField> {
       height: 36,
       onChanged: widget.onChanged,
       placeholder: widget.hint,
-      prefixIcon: Padding(
-        padding: const EdgeInsets.only(left: 10, right: 8),
-        child: Icon(
-          LucideIcons.search,
-          size: 16,
-          color: th.textMuted,
-        ),
+      prefixIcon: Icon(
+        LucideIcons.search,
+        size: 16,
+        color: th.textMuted,
       ),
     );
   }

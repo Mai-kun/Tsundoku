@@ -16,6 +16,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:tsundoku_flutter/features/edit-media/module_card.dart';
 import 'package:tsundoku_flutter/shared/i18n/index.dart';
 import 'package:tsundoku_flutter/shared/theme/tsundoku_tokens.dart';
+import 'package:tsundoku_flutter/shared/ui/text_field.dart';
 
 class AltTitlesModule extends ConsumerStatefulWidget {
   final bool flat;
@@ -262,39 +263,15 @@ class _AltInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final th = TsundokuTheme.of(context);
-    return TextField(
+    return TsundokuTextField(
       controller: controller,
       onSubmitted: onSubmitted,
       onChanged: onChanged,
+      placeholder: hint,
       style: TextStyle(
         fontSize: 14, // text-sm
         fontWeight: FontWeight.w400,
         color: th.textPrimary,
-      ),
-      decoration: InputDecoration(
-        isDense: true,
-        filled: true,
-        fillColor: th.bgSurface, // bg-field
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // h-9
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: Colors.white.withAlpha(26),
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: Colors.white.withAlpha(26),
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: th.accent.withAlpha(153)),
-        ),
-        hintText: hint,
-        hintStyle: TextStyle(color: th.textMuted),
       ),
     );
   }
@@ -326,37 +303,32 @@ class _AltEditInput extends StatelessWidget {
         }
         return KeyEventResult.ignored;
       },
-      child: SizedBox(
+      child: Container(
         height: 28, // h-7
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: th.bgSurface,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: th.accent.withAlpha(153)),
+        ),
         child: TextField(
           controller: controller,
           autofocus: true,
           onSubmitted: onSubmitted,
+          textAlignVertical: TextAlignVertical.center,
           style: TextStyle(
             fontSize: 14, // text-sm
             fontWeight: FontWeight.w400,
             color: th.textPrimary,
           ),
-          decoration: InputDecoration(
-            isDense: true,
-            filled: true,
-            fillColor: th.bgSurface,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // px-2
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6), // rounded-md
-              borderSide: BorderSide(
-                  color: th.accent.withAlpha(153)), // border-indigo-500/60
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: BorderSide(color: th.accent.withAlpha(153)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide:
-                  BorderSide(color: th.accent.withAlpha(153), width: 1.5),
-            ),
+          decoration: const InputDecoration(
+            isCollapsed: true,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            filled: false,
+            contentPadding: EdgeInsets.zero,
           ),
         ),
       ),

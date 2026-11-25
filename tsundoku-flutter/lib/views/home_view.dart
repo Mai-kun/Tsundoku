@@ -1682,13 +1682,10 @@ class _HomeSearchFieldState extends State<_HomeSearchField> {
       height: 36,
       onChanged: widget.state.updateSearchQuery,
       placeholder: hint,
-      prefixIcon: Padding(
-        padding: const EdgeInsets.only(left: 10, right: 8),
-        child: Icon(
-          LucideIcons.search,
-          size: 16,
-          color: th.textMuted,
-        ),
+      prefixIcon: Icon(
+        LucideIcons.search,
+        size: 16,
+        color: th.textMuted,
       ),
     );
   }

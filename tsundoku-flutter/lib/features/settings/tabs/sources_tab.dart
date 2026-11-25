@@ -1104,7 +1104,6 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
             const SizedBox(height: 6),
             TsundokuTextField(
               controller: _proxyUrlController,
-              height: 38,
               placeholder: t.tr('settingsModal.sources.proxy.urlPlaceholder'),
             ),
             const SizedBox(height: 12),
@@ -1122,7 +1121,6 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
                       const SizedBox(height: 6),
                       TsundokuTextField(
                         controller: _proxyUsernameController,
-                        height: 38,
                       ),
                     ],
                   ),
@@ -1139,7 +1137,6 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
                       const SizedBox(height: 6),
                       TsundokuTextField(
                         controller: _proxyPasswordController,
-                        height: 38,
                         obscureText: true,
                         onChanged: (_) => _proxyPasswordDirty = true,
                         placeholder: t.tr('settingsModal.sources.proxy.passwordPlaceholder'),
@@ -1714,13 +1711,14 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
             Expanded(
               child: TsundokuTextField(
                 controller: controller,
-                height: 38,
                 obscureText: !showKey,
                 placeholder: customPlaceholder ??
                     (source.hasKey
                         ? t.tr('settingsModal.sources.replaceKeyPlaceholder')
                         : t.tr('settingsModal.sources.inputPlaceholder')),
                 suffix: IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                   icon: Icon(showKey ? LucideIcons.eyeOff : LucideIcons.eye, size: 14),
                   onPressed: () => setState(() => _showKeys[source.id] = !showKey),
                 ),

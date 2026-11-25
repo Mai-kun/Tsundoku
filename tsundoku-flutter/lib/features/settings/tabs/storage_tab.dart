@@ -326,7 +326,6 @@ class _StorageTabState extends ConsumerState<StorageTab> {
                       const SizedBox(height: 6),
                       TsundokuTextField(
                         controller: _customPathController,
-                        height: 38,
                         placeholder: t.tr('settingsModal.storage.customPathPlaceholder'),
                       ),
                     ],

@@ -212,11 +212,17 @@ class UiSettingsState {
 }
 
 class UiSettingsController extends Notifier<UiSettingsState> {
+  final SharedPreferences? _initialPrefs;
+
+  UiSettingsController([this._initialPrefs]);
+
   @override
   UiSettingsState build() {
     ref.onDispose(disposeWatchers);
-    // Конструктор исходника: setAppIcon(appIcon) + applyTheme(theme) — DOM
-    // side-effects без Flutter-аналога; load() запускается извне (AppShell).
+    final prefs = _initialPrefs;
+    if (prefs != null) {
+      return _readStateFromPrefs(prefs, const UiSettingsState());
+    }
     return const UiSettingsState();
   }
 
@@ -245,14 +251,21 @@ class UiSettingsController extends Notifier<UiSettingsState> {
     }
   }
 
-  PeopleSizeMap _readStoredMap(SharedPreferences prefs, String key) {
+  PeopleSizeMap _readStoredMap(
+    SharedPreferences prefs,
+    String key, {
+    String? legacyKey,
+  }) {
     try {
-      final parsed = prefs.getString(key);
+      final parsed = prefs.getString(key) ??
+          (legacyKey != null ? prefs.getString(legacyKey) : null);
       if (parsed == null) return <String, PeopleCardSize>{};
       final decoded = jsonDecode(parsed);
       if (decoded is! Map<String, dynamic>) return <String, PeopleCardSize>{};
-      return decoded.map((k, v) =>
-          MapEntry(k, PeopleCardSize.tryFromWire(v as String? ?? '') ?? PeopleCardSize.compact));
+      return decoded.map((k, v) => MapEntry(
+          k,
+          PeopleCardSize.tryFromWire(v as String? ?? '') ??
+              PeopleCardSize.large));
     } catch (_) {
       // Unreadable payload: fall through to an empty map.
       return <String, PeopleCardSize>{};
@@ -287,24 +300,29 @@ class UiSettingsController extends Notifier<UiSettingsState> {
         _voiceOptionMemoryKey, jsonEncode(state.voiceOptionMemory.toJson()));
   }
 
-  /// Асинхронная инициализация из persisted-значений + сервера (аналог
-  /// конструктора с read*/load()).
-  Future<void> loadPersisted() async {
-    final prefs = await _prefs();
-    state = state.copyWith(
+  UiSettingsState _readStateFromPrefs(
+    SharedPreferences prefs,
+    UiSettingsState base,
+  ) {
+    return base.copyWith(
       lastView: _read<String>(prefs, 'last_view', 'home'),
       groupByType: _read<bool>(prefs, 'group_by_type', false),
       sortOption: _read<String>(prefs, 'sort_option', 'newest'),
-      statusFilter:
-          _read<String>(prefs, 'status_filter', 'all'),
-      bookPageMinutes: _readStoredNumber(
-          prefs, _bookPageMinutesKey, defaultBookPageMinutes),
+      statusFilter: _read<String>(prefs, 'status_filter', 'all'),
+      bookPageMinutes:
+          _readStoredNumber(prefs, _bookPageMinutesKey, defaultBookPageMinutes),
       mangaChapterMinutes: _readStoredNumber(
           prefs, _mangaChapterMinutesKey, defaultMangaChapterMinutes),
-      castSizeByCategory:
-          _readStoredMap(prefs, _castSizeByCategoryKey),
-      staffSizeByCategory:
-          _readStoredMap(prefs, _staffSizeByCategoryKey),
+      castSizeByCategory: _readStoredMap(
+        prefs,
+        _castSizeByCategoryKey,
+        legacyKey: 'tsundoku_cast_size',
+      ),
+      staffSizeByCategory: _readStoredMap(
+        prefs,
+        _staffSizeByCategoryKey,
+        legacyKey: 'tsundoku_staff_size',
+      ),
       statsScope: prefs.getString('stats_scope') == 'all' ? 'all' : 'completed',
       onCloseAction: OnCloseActionPref.tryFromWire(
               prefs.getString(_onCloseActionKey) ?? '') ??
@@ -315,6 +333,13 @@ class UiSettingsController extends Notifier<UiSettingsState> {
           ? 'obsidian'
           : 'obsidian',
     );
+  }
+
+  /// Асинхронная инициализация из persisted-значений + сервера (аналог
+  /// конструктора с read*/load()).
+  Future<void> loadPersisted() async {
+    final prefs = await _prefs();
+    state = _readStateFromPrefs(prefs, state);
     await load();
   }
 
@@ -378,7 +403,7 @@ class UiSettingsController extends Notifier<UiSettingsState> {
   }
 
   PeopleCardSize getCastSize(String category) =>
-      state.castSizeByCategory[category] ?? PeopleCardSize.compact;
+      state.castSizeByCategory[category] ?? PeopleCardSize.large;
 
   Future<void> setCastSize(String category, PeopleCardSize size) async {
     final next = <String, PeopleCardSize>{...state.castSizeByCategory, category: size};
@@ -387,7 +412,7 @@ class UiSettingsController extends Notifier<UiSettingsState> {
   }
 
   PeopleCardSize getStaffSize(String category) =>
-      state.staffSizeByCategory[category] ?? PeopleCardSize.compact;
+      state.staffSizeByCategory[category] ?? PeopleCardSize.large;
 
   Future<void> setStaffSize(String category, PeopleCardSize size) async {
     final next = <String, PeopleCardSize>{...state.staffSizeByCategory, category: size};

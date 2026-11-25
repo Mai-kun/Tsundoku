@@ -35,9 +35,9 @@ class PeopleSizeToggle extends ConsumerWidget {
     final settings = ref.watch(uiSettingsProvider);
 
     // getCastSize/getStaffSize живут на контроллере; состояние берём из
-    // стейт-карт (реактивный watch) — 1-в-1 с дефолтом compact.
+    // стейт-карт (реактивный watch) — по умолчанию крупный вид (large).
     PeopleCardSize sizeFor(PeopleSizeMap map) =>
-        map[category] ?? PeopleCardSize.compact;
+        map[category] ?? PeopleCardSize.large;
     final isLarge = block == PeopleBlock.cast
         ? sizeFor(settings.castSizeByCategory) == PeopleCardSize.large
         : sizeFor(settings.staffSizeByCategory) == PeopleCardSize.large;

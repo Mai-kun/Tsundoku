@@ -118,8 +118,9 @@ class _CreatorSectionState extends ConsumerState<CreatorSection> {
     final locale = ref.watch(i18nProvider);
     final settings = ref.watch(uiSettingsProvider);
     final isRu = locale.wire == 'ru';
-    final largeStaff =
-        settings.staffSizeByCategory[widget.category] == PeopleCardSize.large;
+    final largeStaff = (settings.staffSizeByCategory[widget.category] ??
+            PeopleCardSize.large) ==
+        PeopleCardSize.large;
     final summary = _summary;
 
     final completionPercent = (summary != null && summary.totalCount > 0)

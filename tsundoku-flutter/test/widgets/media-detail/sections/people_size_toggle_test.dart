@@ -32,20 +32,20 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('дефолт compact: List активен, LayoutGrid неактивен',
+  testWidgets('дефолт large: LayoutGrid активен, List неактивен',
       (tester) async {
     await pumpToggle(tester, category: 'anime', block: PeopleBlock.cast);
 
-    // Обе иконки присутствуют; компактная (list) — активная (белая).
+    // Обе иконки присутствуют; крупная (layoutGrid) — активная (белая).
     expect(find.byIcon(LucideIcons.list), findsOneWidget);
     expect(find.byIcon(LucideIcons.layoutGrid), findsOneWidget);
     final listIcon = tester.widget<Icon>(find.byIcon(LucideIcons.list));
     final gridIcon = tester.widget<Icon>(find.byIcon(LucideIcons.layoutGrid));
-    expect(listIcon.color, Colors.white); // bg-accent text-white
-    expect(gridIcon.color, isNot(Colors.white)); // text-muted
+    expect(gridIcon.color, Colors.white); // bg-accent text-white
+    expect(listIcon.color, isNot(Colors.white)); // text-muted
   });
 
-  testWidgets('тап на крупный вид → переключение в uiSettings (cast)',
+  testWidgets('тап на компактный вид → переключение в uiSettings (cast)',
       (tester) async {
     late ProviderContainer container;
     await tester.pumpWidget(UncontrolledProviderScope(
@@ -58,16 +58,16 @@ void main() {
     ));
     await tester.pump();
 
-    await tester.tap(find.byIcon(LucideIcons.layoutGrid));
+    await tester.tap(find.byIcon(LucideIcons.list));
     await tester.pumpAndSettle();
 
     expect(
       container.read(uiSettingsProvider).castSizeByCategory['anime'],
-      PeopleCardSize.large,
+      PeopleCardSize.compact,
     );
-    // Grid теперь активен.
-    final gridIcon = tester.widget<Icon>(find.byIcon(LucideIcons.layoutGrid));
-    expect(gridIcon.color, Colors.white);
+    // List теперь активен.
+    final listIcon = tester.widget<Icon>(find.byIcon(LucideIcons.list));
+    expect(listIcon.color, Colors.white);
   });
 
   testWidgets('staff-блок хранит размер отдельно от cast', (tester) async {
@@ -82,17 +82,17 @@ void main() {
     ));
     await tester.pump();
 
-    await tester.tap(find.byIcon(LucideIcons.layoutGrid));
+    await tester.tap(find.byIcon(LucideIcons.list));
     await tester.pumpAndSettle();
 
     expect(
       container.read(uiSettingsProvider).staffSizeByCategory['anime'],
-      PeopleCardSize.large,
+      PeopleCardSize.compact,
     );
     expect(
       container.read(uiSettingsProvider).castSizeByCategory['anime'] ??
-          PeopleCardSize.compact,
-      isNot(PeopleCardSize.large),
+          PeopleCardSize.large,
+      PeopleCardSize.large,
     );
   });
 }

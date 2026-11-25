@@ -157,17 +157,35 @@ void main() {
     expect(container2.read(uiSettingsProvider).appIcon, 'alt');
   });
 
-  test('cast/staff size: get/set с дефолтом compact', () async {
-    expect(ctrl.getCastSize('anime'), PeopleCardSize.compact);
-    await ctrl.setCastSize('anime', PeopleCardSize.large);
+  test('cast/staff size: get/set с дефолтом large и сохранением в SharedPreferences', () async {
     expect(ctrl.getCastSize('anime'), PeopleCardSize.large);
-    expect(ctrl.getCastSize('manga'), PeopleCardSize.compact,
+    expect(ctrl.getStaffSize('anime'), PeopleCardSize.large);
+
+    await ctrl.setCastSize('anime', PeopleCardSize.compact);
+    expect(ctrl.getCastSize('anime'), PeopleCardSize.compact);
+    expect(ctrl.getCastSize('manga'), PeopleCardSize.large,
         reason: 'пер-категория: смена anime не трогает manga');
 
-    await ctrl.setStaffSize('manga', PeopleCardSize.large);
-    expect(ctrl.getStaffSize('manga'), PeopleCardSize.large);
-    expect(ctrl.getCastSize('anime'), PeopleCardSize.large,
+    await ctrl.setStaffSize('manga', PeopleCardSize.compact);
+    expect(ctrl.getStaffSize('manga'), PeopleCardSize.compact);
+    expect(ctrl.getCastSize('anime'), PeopleCardSize.compact,
         reason: 'cast и staff — независимые карты');
+
+    await ctrl.setCastSize('book', PeopleCardSize.large);
+    await ctrl.setStaffSize('book', PeopleCardSize.large);
+
+    // Повторное создание контроллера (рестарт приложения) восстанавливает из SharedPreferences:
+    final container2 = ProviderContainer(overrides: [
+      apiClientProvider.overrideWithValue(api),
+    ]);
+    addTearDown(container2.dispose);
+    final ctrl2 = container2.read(uiSettingsProvider.notifier);
+    await ctrl2.loadPersisted();
+
+    expect(ctrl2.getCastSize('anime'), PeopleCardSize.compact);
+    expect(ctrl2.getCastSize('book'), PeopleCardSize.large);
+    expect(ctrl2.getStaffSize('manga'), PeopleCardSize.compact);
+    expect(ctrl2.getStaffSize('book'), PeopleCardSize.large);
   });
 
   test('voice memory: remember добавляет и starred, toggle снимает', () async {

@@ -203,6 +203,7 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
     // последнего вынесенного view (readRoute откатил его на home).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      unawaited(ref.read(uiSettingsProvider.notifier).loadPersisted());
       ref
           .read(navigationCategoriesProvider.notifier)
           .loadNavigationCategories()

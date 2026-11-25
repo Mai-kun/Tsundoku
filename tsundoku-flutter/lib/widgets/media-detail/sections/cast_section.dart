@@ -277,8 +277,9 @@ class _CastSectionState extends ConsumerState<CastSection> {
     final display = _display;
     if (display == null) return const SizedBox.shrink();
 
-    final large =
-        settings.castSizeByCategory[_categoryKey] == PeopleCardSize.large;
+    final large = (settings.castSizeByCategory[_categoryKey] ??
+            PeopleCardSize.large) ==
+        PeopleCardSize.large;
 
     final mainPool = _mainPool(display);
     final portraitCount =

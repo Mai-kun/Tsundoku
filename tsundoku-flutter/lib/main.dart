@@ -19,11 +19,13 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
 import 'shared/api/api.dart';
 import 'shared/platform/dev_tools.dart';
 import 'shared/platform/platform.dart';
+import 'shared/utils/ui_settings.dart';
 
 export 'app/app.dart' show TsundokuApp;
 export 'shared/platform/dev_tools.dart' show buildDebugAgentationOverlay;
@@ -62,6 +64,7 @@ Future<void> main(List<String> args) async {
   await platformService.initWindow();
 
   final initialUrl = parseBaseUrl(args);
+  final prefs = await SharedPreferences.getInstance();
 
   // window.onerror → sendClientLog (1-в-1 с main.ts).
   FlutterError.onError = (details) {
@@ -73,6 +76,10 @@ Future<void> main(List<String> args) async {
   };
 
   runApp(ProviderScope(
+    overrides: [
+      apiBaseUrlProvider.overrideWith(() => ApiBaseUrlController(initialUrl)),
+      uiSettingsProvider.overrideWith(() => UiSettingsController(prefs)),
+    ],
     child: TsundokuRoot(initialBaseUrl: initialUrl),
   ));
 }

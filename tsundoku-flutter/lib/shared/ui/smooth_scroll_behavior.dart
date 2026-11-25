@@ -269,7 +269,7 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
 
     event.respond(allowPlatformDefault: false);
 
-    if ((state.targetPixels - position.pixels).abs() < 0.5 &&
+    if ((state.targetPixels - position.pixels).abs() < 0.25 &&
         !_activeGlides.containsKey(position)) {
       return;
     }
@@ -302,10 +302,11 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
     }
     _lastTickElapsed = elapsed;
 
-    // Двухступенчатое сглаживание 2-го порядка: плавный разгон (bell-curve) без
-    // резкого стартового удара в первый кадр.
-    final double targetFactor = 1.0 - math.exp(-28.0 * dt);
-    final double followFactor = 1.0 - math.exp(-22.0 * dt);
+    // Двухступенчатое сглаживание 2-го порядка в стиле Chromium (~260–300 мс
+    // выкат): мягкий разгон (bell-curve) и длинное плавное торможение без
+    // резкого стартового удара.
+    final double targetFactor = 1.0 - math.exp(-15.0 * dt);
+    final double followFactor = 1.0 - math.exp(-9.5 * dt);
     final List<ScrollPosition> toRemove = <ScrollPosition>[];
 
     for (final MapEntry<ScrollPosition, _GlideState> entry
@@ -338,7 +339,7 @@ class _RenderSmoothWheelInterceptor extends RenderProxyBox {
       final double smoothedDiff =
           state.targetPixels - state.smoothedTargetPixels;
 
-      if (rawDiff.abs() < 0.5 && smoothedDiff.abs() < 0.5) {
+      if (rawDiff.abs() < 0.25 && smoothedDiff.abs() < 0.25) {
         final double finalTarget = state.targetPixels;
         toRemove.add(position);
         if (position.pixels != finalTarget) {

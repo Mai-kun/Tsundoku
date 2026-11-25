@@ -78,9 +78,18 @@ void main() {
     expect(step8, lessThan(step24));
     expect(step16, greaterThan(step8));
 
+    // Длинный выкат в стиле Chromium (~260–300 мс): на отметке ~120 мс
+    // скролл ещё мягко скользит, а не затухает мгновенно за 100 мс.
+    for (int i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 8));
+    }
+    final double offset120 = controller.offset;
+    expect(offset120, greaterThan(offset24));
+    expect(offset120, lessThan(200.0));
+
     // После достаточного времени скролл сходится точно к целевой позиции 240.0.
     await tester.pumpAndSettle();
-    expect(controller.offset, closeTo(240.0, 0.5));
+    expect(controller.offset, closeTo(240.0, 0.25));
   });
 
   testWidgets(

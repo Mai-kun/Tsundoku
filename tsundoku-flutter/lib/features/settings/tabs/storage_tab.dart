@@ -21,6 +21,7 @@ import '../../../shared/types/models.dart';
 import '../../../shared/ui/confirm_dialog.dart';
 import '../../../shared/ui/text_field.dart';
 import '../../../shared/ui/toast.dart';
+import '../../../shared/ui/tsundoku_scroll.dart';
 
 class StorageTab extends ConsumerStatefulWidget {
   const StorageTab({super.key});
@@ -210,7 +211,7 @@ class _StorageTabState extends ConsumerState<StorageTab> {
     final theme = TsundokuTheme.of(context);
     final storage = _storage;
 
-    return SingleChildScrollView(
+    return TsundokuSmoothScrollView(
       padding: const EdgeInsets.all(24),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 800),

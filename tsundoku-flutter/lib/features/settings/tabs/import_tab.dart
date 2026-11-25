@@ -7,6 +7,7 @@ library;
 
 import 'package:material_ui/material_ui.dart';
 
+import '../../../shared/ui/tsundoku_scroll.dart';
 import '../../import-media/import_panel.dart';
 
 class ImportTab extends StatelessWidget {
@@ -23,7 +24,7 @@ class ImportTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
+    return TsundokuSmoothScrollView(
       padding: const EdgeInsets.all(24),
       child: Center(
         child: ConstrainedBox(

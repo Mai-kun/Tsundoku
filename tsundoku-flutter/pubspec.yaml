@@ -58,6 +58,7 @@ dependencies:
   media_kit_video: ^2.0.1
   media_kit_libs_linux: ^1.2.1
   youtube_explode_dart: ^3.1.0
+  flutter_smooth_wheel_scroll: ^0.1.7
 
 dev_dependencies:
   flutter_test:

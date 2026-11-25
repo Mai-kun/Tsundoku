@@ -22,7 +22,7 @@ import '../../shared/i18n/index.dart';
 import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/types/index.dart';
 import '../../shared/ui/modal.dart';
-import '../../shared/ui/smooth_scroll_controller.dart';
+import '../../shared/ui/tsundoku_scroll.dart';
 import '../../shared/ui/toast.dart';
 import '../../shared/ui/tsundoku_image.dart';
 import '../../shared/utils/url_media_parser.dart';
@@ -611,9 +611,8 @@ class _BackgroundJobsModalState extends ConsumerState<BackgroundJobsModal> {
 
   Widget _buildJobsTab(I18nDictionary t, TsundokuTheme th, JobsState jobs,
       int pendingCount) {
-    return SmoothScrollScope(
+    return TsundokuSmoothScrollView(
       key: const ValueKey('jobs-queue-scroll'),
-      child: SingleChildScrollView(
       padding: const EdgeInsets.all(20), // p-5
       child: Column(
         children: [
@@ -687,7 +686,6 @@ class _BackgroundJobsModalState extends ConsumerState<BackgroundJobsModal> {
               ],
             ),
         ],
-      ),
       ),
     );
   }
@@ -931,24 +929,22 @@ class _BackgroundJobsModalState extends ConsumerState<BackgroundJobsModal> {
                       style: TextStyle(fontSize: 12, color: th.textMuted),
                     ),
                   )
-                : SmoothScrollScope(
+                : TsundokuSmoothScrollView(
                     key: const ValueKey('jobs-pending-list'),
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(8), // p-2
-                      child: Column(
-                        children: [
-                          for (final item in visible)
-                            _PendingRow(
-                              item: item,
-                              active: item.id == selectedItem?.id,
-                              candidateCount: _candidateCount(item),
-                              th: th,
-                              suggestionsTitle: t.tr('backgroundJobs.suggestions'),
-                              onTap: () =>
-                                  setState(() => _selectedMatchId = item.id),
-                            ),
-                        ],
-                      ),
+                    padding: const EdgeInsets.all(8), // p-2
+                    child: Column(
+                      children: [
+                        for (final item in visible)
+                          _PendingRow(
+                            item: item,
+                            active: item.id == selectedItem?.id,
+                            candidateCount: _candidateCount(item),
+                            th: th,
+                            suggestionsTitle: t.tr('backgroundJobs.suggestions'),
+                            onTap: () =>
+                                setState(() => _selectedMatchId = item.id),
+                          ),
+                      ],
                     ),
                   ),
           ),
@@ -1199,9 +1195,8 @@ class _BackgroundJobsModalState extends ConsumerState<BackgroundJobsModal> {
           ),
           // Контент: duplicate-вердикт или кандидаты.
           Expanded(
-            child: SmoothScrollScope(
+            child: TsundokuSmoothScrollView(
               key: ValueKey('jobs-pending-detail-${item.id}'),
-              child: SingleChildScrollView(
               padding: const EdgeInsets.all(16), // p-4
               child: duplicate != null
                   ? _duplicateCard(t, th, item, duplicate)
@@ -1293,7 +1288,6 @@ class _BackgroundJobsModalState extends ConsumerState<BackgroundJobsModal> {
                           }),
                       ],
                     ),
-              ),
             ),
           ),
         ],

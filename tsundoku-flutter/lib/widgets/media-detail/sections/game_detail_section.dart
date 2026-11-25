@@ -15,6 +15,7 @@ import '../../../shared/i18n/index.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
 import '../../../shared/types/index.dart';
 import '../../../shared/ui/tsundoku_image.dart';
+import '../../../shared/ui/tsundoku_scroll.dart';
 import 'progress_card.dart';
 
 /// Игровая секция (1-в-1 с GameDetailSection.svelte).
@@ -301,7 +302,7 @@ class _GameDetailSectionState extends ConsumerState<GameDetailSection> {
                   ConstrainedBox(
                     constraints: const BoxConstraints(
                         maxHeight: 520), // max-h-[520px]
-                    child: SingleChildScrollView(
+                    child: TsundokuSmoothScrollView(
                       child: LayoutBuilder(
                         builder: (context, constraints) {
                           // grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3

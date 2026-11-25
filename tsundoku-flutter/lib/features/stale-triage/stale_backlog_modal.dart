@@ -17,7 +17,7 @@ import '../../shared/api/api.dart';
 import '../../shared/i18n/index.dart';
 import '../../shared/types/index.dart';
 import '../../shared/ui/modal.dart';
-import '../../shared/ui/smooth_scroll_controller.dart';
+import '../../shared/ui/tsundoku_scroll.dart';
 import '../../shared/ui/toast.dart';
 import '../../shared/ui/tsundoku_image.dart';
 
@@ -43,6 +43,14 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
   int _threshold = 180;
   List<MediaItem> _allInProgress = [];
   bool _loading = false;
+  final SmoothScrollController _listScrollController =
+      createTsundokuScrollController();
+
+  @override
+  void dispose() {
+    _listScrollController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -543,9 +551,9 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
       );
     }
 
-    return SmoothScrollScope(
-      child: ListView.separated(
-        itemCount: stale.length,
+    return ListView.separated(
+      controller: _listScrollController,
+      itemCount: stale.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final item = stale[index];
@@ -712,7 +720,6 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
           ),
         );
       },
-      ),
     );
   }
 

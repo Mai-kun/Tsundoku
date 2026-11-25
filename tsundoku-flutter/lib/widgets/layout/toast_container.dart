@@ -21,6 +21,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../shared/i18n/index.dart';
 import '../../shared/ui/toast.dart';
+import '../../shared/ui/tsundoku_scroll.dart';
 
 /// Grace window after the pointer leaves: the countdown stays frozen for
 /// exactly 1s and only then smoothly resumes (a re-enter cancels it).
@@ -723,7 +724,7 @@ class _ExpandedBody extends StatelessWidget {
               padding: const EdgeInsets.only(top: 8),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 160), // max-h-40
-                child: SingleChildScrollView(
+                child: TsundokuSmoothScrollView(
                   child: Text(
                     toast.description,
                     style: const TextStyle(

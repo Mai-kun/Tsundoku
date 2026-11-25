@@ -25,6 +25,7 @@ import 'app/app.dart';
 import 'shared/api/api.dart';
 import 'shared/platform/dev_tools.dart';
 import 'shared/platform/platform.dart';
+import 'shared/ui/tsundoku_scroll.dart';
 import 'shared/utils/ui_settings.dart';
 
 export 'app/app.dart' show TsundokuApp;
@@ -60,7 +61,11 @@ String parseBaseUrl(List<String> args) {
 }
 
 Future<void> main(List<String> args) async {
-  ensureAppBindingInitialized();
+  if (!kDebugMode) {
+    SmoothWheelBinding.ensureInitialized(scale: kTsundokuWheelScale);
+  } else {
+    ensureAppBindingInitialized();
+  }
   await platformService.initWindow();
 
   final initialUrl = parseBaseUrl(args);

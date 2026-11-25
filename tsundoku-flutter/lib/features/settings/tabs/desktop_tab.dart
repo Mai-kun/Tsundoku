@@ -17,6 +17,7 @@ import '../../../shared/platform/platform.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
 import '../../../shared/ui/confirm_dialog.dart';
 import '../../../shared/ui/toast.dart';
+import '../../../shared/ui/tsundoku_scroll.dart';
 
 class DesktopTab extends ConsumerStatefulWidget {
   const DesktopTab({super.key});
@@ -124,7 +125,7 @@ class _DesktopTabState extends ConsumerState<DesktopTab> {
     final theme = TsundokuTheme.of(context);
     final isAppWindow = _appSettings.launchMode == AppLaunchMode.appWindow;
 
-    return SingleChildScrollView(
+    return TsundokuSmoothScrollView(
       padding: const EdgeInsets.all(24),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 800),

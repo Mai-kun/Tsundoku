@@ -19,6 +19,7 @@ import '../../../shared/api/api.dart';
 import '../../../shared/i18n/index.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
 import '../../../shared/types/index.dart';
+import '../../../shared/ui/tsundoku_scroll.dart';
 import '../detail_types.dart';
 
 const int _kSegmentLimit = 60;
@@ -817,7 +818,7 @@ class _EpisodesTabState extends ConsumerState<EpisodesTab> {
             ConstrainedBox(
               constraints:
                   const BoxConstraints(maxHeight: 560), // max-h-[560px]
-              child: SingleChildScrollView(
+              child: TsundokuSmoothScrollView(
                 child: Column(
                   children: [
                     for (final episode in activeRows)

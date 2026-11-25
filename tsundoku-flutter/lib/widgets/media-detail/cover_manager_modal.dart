@@ -21,6 +21,7 @@ import '../../shared/types/index.dart';
 import '../../shared/ui/modal.dart';
 import '../../shared/ui/toast.dart';
 import '../../shared/ui/tsundoku_image.dart';
+import '../../shared/ui/tsundoku_scroll.dart';
 
 // Tailwind-литералы (вне ThemeExtension — как в детальных секциях).
 const Color _kIndigo600 = Color(0xFF4F46E5);
@@ -635,7 +636,7 @@ class _CoverManagerModalState extends ConsumerState<CoverManagerModal> {
         }),
     ];
 
-    return SingleChildScrollView(
+    return TsundokuSmoothScrollView(
       child: Padding(
         padding: const EdgeInsets.all(16), // p-4
         child: LayoutBuilder(

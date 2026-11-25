@@ -41,8 +41,7 @@ import '../shared/types/enums.dart' hide SettingsTab;
 import '../shared/types/models.dart';
 import '../shared/ui/confirm_modal.dart';
 import '../shared/ui/context_menu_controller.dart';
-import '../shared/ui/smooth_scroll_behavior.dart';
-import '../shared/ui/smooth_scroll_controller.dart';
+import '../shared/ui/tsundoku_scroll.dart';
 import '../shared/ui/toast.dart';
 import '../shared/utils/app_exit.dart';
 import '../shared/utils/ui_settings.dart';
@@ -91,13 +90,12 @@ class TsundokuApp extends StatelessWidget {
       title: 'Tsundoku',
       debugShowCheckedModeBanner: false,
       theme: buildTsundokuTheme(tokens: TsundokuTheme.obsidian),
-      scrollBehavior: const TsundokuSmoothScrollBehavior(),
       builder: (context, child) {
         Widget built = child ?? const SizedBox.shrink();
         if (kDebugMode && debugOverlayBuilder != null) {
           built = debugOverlayBuilder!(context, built);
         }
-        return TsundokuSmoothWheelInterceptor(child: built);
+        return built;
       },
       home: ProviderScope(
         overrides: (providerOverrides ?? const <dynamic>[]).cast(),
@@ -125,9 +123,9 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
   int _mediaRevision = 0;
   bool _isExitModalOpen = false; // CloseAppModal ✓
   bool _firstRunSetupRequired = false; // FirstRunStorageModal ✓
-  final Map<String, ScrollController> _viewScrollControllers =
-      <String, ScrollController>{};
-  final ScrollController _detailScroll = SmoothScrollController();
+  final Map<String, SmoothScrollController> _viewScrollControllers =
+      <String, SmoothScrollController>{};
+  final SmoothScrollController _detailScroll = createTsundokuScrollController();
   final List<String> _cachedViewKeys = <String>[AppViews.home];
   late final AppExit _appExit;
 
@@ -247,10 +245,10 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
     super.dispose();
   }
 
-  ScrollController _controllerFor(String viewKey) {
+  SmoothScrollController _controllerFor(String viewKey) {
     return _viewScrollControllers.putIfAbsent(
       viewKey,
-      () => SmoothScrollController(),
+      () => createTsundokuScrollController(),
     );
   }
 

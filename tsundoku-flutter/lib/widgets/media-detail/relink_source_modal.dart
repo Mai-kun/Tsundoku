@@ -20,6 +20,7 @@ import '../../shared/types/index.dart';
 import '../../shared/ui/modal.dart';
 import '../../shared/ui/popover_menu.dart';
 import '../../shared/ui/tsundoku_image.dart';
+import '../../shared/ui/tsundoku_scroll.dart';
 
 const Color _kAccentSoft = Color(0xFFA5B4FC); // --color-accent-soft
 const Color _kInputBg = Color(0xFF1C202B); // bg-[#1c202b]
@@ -549,7 +550,7 @@ class _RelinkSourceModalState extends ConsumerState<RelinkSourceModal> {
       );
     }
 
-    return SingleChildScrollView(
+    return TsundokuSmoothScrollView(
       padding: const EdgeInsets.all(16), // p-4
       child: Column(
         children: [

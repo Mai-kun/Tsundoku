@@ -22,6 +22,7 @@ import '../../../shared/ui/badge.dart';
 import '../../../shared/ui/popover_menu.dart';
 import '../../../shared/ui/text_field.dart';
 import '../../../shared/ui/toast.dart';
+import '../../../shared/ui/tsundoku_scroll.dart';
 
 class SearchTab extends ConsumerStatefulWidget {
   const SearchTab({super.key});
@@ -479,7 +480,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
     final promoted = ref.watch(navigationCategoriesProvider);
     ref.watch(offlineModeProvider);
 
-    return SingleChildScrollView(
+    return TsundokuSmoothScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

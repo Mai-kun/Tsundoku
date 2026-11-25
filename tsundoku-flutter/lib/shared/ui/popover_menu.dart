@@ -13,10 +13,8 @@ import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 
 import '../theme/tsundoku_theme.dart';
-
-
-
 import '../theme/tsundoku_tokens.dart';
+import 'tsundoku_scroll.dart';
 
 /// Опция поповера (`PopoverOption<T>`).
 class PopoverOption<T> {
@@ -270,7 +268,7 @@ class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
               maxWidth: width ?? 240, // compact 110-240px instead of bloated width
             ),
             child: IntrinsicWidth(
-              child: SingleChildScrollView(
+              child: TsundokuSmoothScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -32,6 +32,7 @@ import '../../shared/ui/hold_to_delete.dart';
 import '../../shared/ui/lightbox.dart';
 import '../../shared/ui/media_cover_placeholder.dart';
 import '../../shared/ui/modal.dart';
+import '../../shared/ui/tsundoku_scroll.dart';
 import '../../shared/platform/platform.dart';
 import '../../shared/ui/panel.dart';
 import '../../shared/ui/text_field.dart';
@@ -2189,7 +2190,7 @@ class _VoiceComboState extends ConsumerState<_VoiceCombo> {
                     maxWidth: 240,
                     maxHeight: 256,
                   ),
-                  child: SingleChildScrollView(
+                  child: TsundokuSmoothScrollView(
                     padding: const EdgeInsets.all(4),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,

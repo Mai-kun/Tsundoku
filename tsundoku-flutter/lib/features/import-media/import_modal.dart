@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:tsundoku_flutter/features/import-media/import_panel.dart';
 import 'package:tsundoku_flutter/shared/ui/modal.dart';
+import 'package:tsundoku_flutter/shared/ui/tsundoku_scroll.dart';
 
 typedef ImportPanelBuilder = Widget Function(
   BuildContext context, {
@@ -68,7 +69,7 @@ class ImportModal extends ConsumerWidget {
           maxHeight: MediaQuery.sizeOf(context).height * 0.86,
         ),
         padding: const EdgeInsets.all(24.0),
-        child: SingleChildScrollView(
+        child: TsundokuSmoothScrollView(
           child: AnimatedOpacity(
             opacity: 1.0,
             duration: const Duration(milliseconds: 150),

@@ -18,6 +18,7 @@ import '../../shared/i18n/index.dart';
 import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/types/dtos.dart';
 import '../../shared/ui/modal.dart';
+import '../../shared/ui/tsundoku_scroll.dart';
 import '../../shared/ui/toast.dart';
 
 class ListPicker extends ConsumerStatefulWidget {
@@ -247,7 +248,7 @@ class ListPickerState extends ConsumerState<ListPicker> {
                   margin: const EdgeInsets.only(top: 16), // mt-4
                   constraints: const BoxConstraints(
                       maxHeight: 360), // max-h-[60vh] @ 900px
-                  child: SingleChildScrollView(
+                  child: TsundokuSmoothScrollView(
                     child: Column(
                       children: [
                         for (final list in _lists)

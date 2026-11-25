@@ -18,6 +18,7 @@ import 'package:tsundoku_flutter/shared/ui/media_cover_placeholder.dart';
 import 'package:tsundoku_flutter/shared/ui/modal.dart';
 import 'package:tsundoku_flutter/shared/ui/text_field.dart';
 import 'package:tsundoku_flutter/shared/ui/tsundoku_image.dart';
+import 'package:tsundoku_flutter/shared/ui/tsundoku_scroll.dart';
 
 const List<String> kCustomListColors = <String>[
   '#473bb8',
@@ -299,7 +300,7 @@ class _CreateListModalState extends ConsumerState<CreateListModal> {
 
             // 2. Body
             Flexible(
-              child: SingleChildScrollView(
+              child: TsundokuSmoothScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

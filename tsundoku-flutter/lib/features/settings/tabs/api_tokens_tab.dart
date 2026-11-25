@@ -19,6 +19,7 @@ import '../../../shared/theme/tsundoku_tokens.dart';
 import '../../../shared/types/dtos.dart';
 import '../../../shared/ui/text_field.dart';
 import '../../../shared/ui/toast.dart';
+import '../../../shared/ui/tsundoku_scroll.dart';
 
 class ApiTokensTab extends ConsumerStatefulWidget {
   const ApiTokensTab({super.key});
@@ -534,7 +535,7 @@ class _ApiTokensTabState extends ConsumerState<ApiTokensTab> {
     final t = ref.watch(tProvider);
     final theme = TsundokuTheme.of(context);
 
-    return SingleChildScrollView(
+    return TsundokuSmoothScrollView(
       padding: const EdgeInsets.all(24),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 800),

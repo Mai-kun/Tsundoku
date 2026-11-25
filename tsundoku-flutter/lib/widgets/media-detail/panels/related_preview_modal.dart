@@ -16,6 +16,7 @@ import '../../../shared/types/index.dart';
 import '../../../shared/ui/modal.dart';
 import '../../../shared/ui/popover_menu.dart';
 import '../../../shared/ui/tsundoku_image.dart';
+import '../../../shared/ui/tsundoku_scroll.dart';
 import '../detail_formatters.dart';
 import '../detail_types.dart';
 
@@ -86,7 +87,7 @@ class RelatedPreviewModal extends ConsumerWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(24), // p-6
-            child: SingleChildScrollView(
+            child: TsundokuSmoothScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

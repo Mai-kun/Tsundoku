@@ -12,6 +12,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../shared/i18n/index.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
 import '../../../shared/ui/tsundoku_image.dart';
+import '../../../shared/ui/tsundoku_scroll.dart';
 import '../../../shared/utils/ui_settings.dart';
 
 class AppearanceTab extends ConsumerWidget {
@@ -24,7 +25,7 @@ class AppearanceTab extends ConsumerWidget {
     final uiSettings = ref.watch(uiSettingsProvider);
     final currentLocale = ref.watch(i18nProvider);
 
-    return SingleChildScrollView(
+    return TsundokuSmoothScrollView(
       padding: const EdgeInsets.all(24),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 800),

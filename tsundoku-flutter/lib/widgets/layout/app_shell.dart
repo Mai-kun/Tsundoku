@@ -19,6 +19,7 @@ import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/ui/context_menu.dart';
 import '../../shared/ui/context_menu_controller.dart';
 import '../../shared/ui/image_lightbox.dart';
+import '../../shared/ui/tsundoku_scroll.dart';
 import 'toast_container.dart';
 
 /// `lg:`-граница (та же, что у Sidebar).
@@ -61,6 +62,17 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   bool _isCreateListOpen = false;
   final GlobalKey<ListPickerState> _listPickerKey = GlobalKey<ListPickerState>();
+  SmoothScrollController? _fallbackScrollController;
+
+  ScrollController get _effectiveMainScrollController =>
+      widget.mainScrollController ??
+      (_fallbackScrollController ??= createTsundokuScrollController());
+
+  @override
+  void dispose() {
+    _fallbackScrollController?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +104,7 @@ class _AppShellState extends ConsumerState<AppShell> {
             child: widget.bodyOverride ??
                 (widget.slivers != null
                     ? CustomScrollView(
-                        controller: widget.mainScrollController,
+                        controller: _effectiveMainScrollController,
                         slivers: [
                           if (widget.noPadding)
                             ...?widget.slivers
@@ -106,7 +118,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                         ],
                       )
                     : SingleChildScrollView(
-                        controller: widget.mainScrollController,
+                        controller: _effectiveMainScrollController,
                         // overflow-x-hidden + noPadding → h-full overflow-hidden p-0.
                         physics: widget.noPadding
                             ? const NeverScrollableScrollPhysics()

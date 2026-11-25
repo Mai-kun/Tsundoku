@@ -22,6 +22,7 @@ import '../../shared/i18n/index.dart';
 import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/types/enums.dart';
 import '../../shared/types/index.dart' show ApiRateLimitStatus;
+import '../../shared/ui/tsundoku_scroll.dart';
 
 class ActivityDropdown extends ConsumerStatefulWidget {
   const ActivityDropdown({super.key});
@@ -348,7 +349,7 @@ class _Popover extends StatelessWidget {
             ),
           ],
         ),
-        child: SingleChildScrollView(
+        child: TsundokuSmoothScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -21,7 +21,7 @@ import '../../shared/i18n/index.dart';
 import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/types/index.dart';
 import '../../shared/ui/modal.dart';
-import '../../shared/ui/smooth_scroll_controller.dart';
+import '../../shared/ui/tsundoku_scroll.dart';
 import '../../shared/ui/text_field.dart';
 import '../../shared/ui/toast.dart';
 import '../../shared/ui/tsundoku_image.dart';
@@ -205,6 +205,13 @@ class _SearchModalState extends ConsumerState<SearchModal> {
   CancelToken? _hoverCancelToken;
   bool _coverForceRefresh = false;
 
+  final SmoothScrollController _groupedScrollController =
+      createTsundokuScrollController();
+  final SmoothScrollController _singleCategoryScrollController =
+      createTsundokuScrollController();
+  final SmoothScrollController _skeletonsScrollController =
+      createTsundokuScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -238,6 +245,9 @@ class _SearchModalState extends ConsumerState<SearchModal> {
     _hoverTimer?.cancel();
     _hoverCancelToken?.cancel();
     _queryController.dispose();
+    _groupedScrollController.dispose();
+    _singleCategoryScrollController.dispose();
+    _skeletonsScrollController.dispose();
     super.dispose();
   }
 
@@ -1578,20 +1588,18 @@ class _SearchModalState extends ConsumerState<SearchModal> {
     }
 
     if (_activeType == 'all') {
-      return SmoothScrollScope(
-        key: const ValueKey('search-grouped'),
-        child: _buildGroupedResults(t, disabledSources),
-      );
+      return _buildGroupedResults(t, disabledSources);
     }
 
-    return SmoothScrollScope(
-      key: ValueKey('search-cat-$_activeType'),
-      child: _buildSingleCategoryList(t, _results, disabledSources),
-    );
+    return _buildSingleCategoryList(t, _results, disabledSources);
   }
 
-  Widget _buildSkeletons() {
+  Widget _buildSkeletons({bool shrinkWrap = false}) {
     return ListView.separated(
+      controller: shrinkWrap ? null : _skeletonsScrollController,
+      shrinkWrap: shrinkWrap,
+      primary: shrinkWrap ? false : null,
+      physics: shrinkWrap ? const NeverScrollableScrollPhysics() : null,
       itemCount: 3,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (_, _) {
@@ -1659,6 +1667,8 @@ class _SearchModalState extends ConsumerState<SearchModal> {
     final ordered = _orderedSearchTypes;
 
     return ListView(
+      key: const ValueKey('search-grouped'),
+      controller: _groupedScrollController,
       children: [
         for (final cat in ordered) ...[
           Builder(builder: (context) {
@@ -1738,7 +1748,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
                   const SizedBox(height: 12),
 
                   if (loading)
-                    _buildSkeletons()
+                    _buildSkeletons(shrinkWrap: true)
                   else
                     Column(
                       children: [
@@ -1770,6 +1780,8 @@ class _SearchModalState extends ConsumerState<SearchModal> {
     Set<String> disabledSources,
   ) {
     return ListView.separated(
+      key: ValueKey('search-cat-$_activeType'),
+      controller: _singleCategoryScrollController,
       itemCount: items.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {

@@ -33,6 +33,7 @@ import 'package:tsundoku_flutter/shared/theme/tsundoku_tokens.dart';
 import 'package:tsundoku_flutter/shared/types/dtos.dart';
 import 'package:tsundoku_flutter/shared/types/enums.dart';
 import 'package:tsundoku_flutter/shared/types/models.dart';
+import 'package:tsundoku_flutter/shared/ui/tsundoku_scroll.dart';
 import 'package:tsundoku_flutter/shared/ui/media_cover_placeholder.dart';
 import 'package:tsundoku_flutter/shared/ui/tsundoku_image.dart';
 
@@ -1084,7 +1085,7 @@ class _EditMediaWorkspaceState extends ConsumerState<EditMediaWorkspace>
 
     return [
       Positioned.fill(
-        child: SingleChildScrollView(
+        child: TsundokuSmoothScrollView(
           padding: const EdgeInsets.fromLTRB(16, 64, 16, 24), // px-4 pt-16 pb-6
           child: Column(
             children: [

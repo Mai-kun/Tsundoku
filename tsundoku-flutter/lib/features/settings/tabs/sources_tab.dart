@@ -24,6 +24,7 @@ import '../../../shared/ui/popover_menu.dart';
 import '../../../shared/ui/segmented_control.dart';
 import '../../../shared/ui/text_field.dart';
 import '../../../shared/ui/toast.dart';
+import '../../../shared/ui/tsundoku_scroll.dart';
 
 class SourcesTab extends ConsumerStatefulWidget {
   final void Function(String sourceId, String? type)? onTestSearch;
@@ -627,7 +628,7 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
       return true;
     }).toList();
 
-    return SingleChildScrollView(
+    return TsundokuSmoothScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

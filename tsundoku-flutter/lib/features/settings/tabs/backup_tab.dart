@@ -18,6 +18,7 @@ import '../../../shared/i18n/index.dart';
 import '../../../shared/platform/platform.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
 import '../../../shared/ui/toast.dart';
+import '../../../shared/ui/tsundoku_scroll.dart';
 
 class BackupTab extends ConsumerStatefulWidget {
   const BackupTab({super.key});
@@ -443,7 +444,7 @@ class _BackupTabState extends ConsumerState<BackupTab> {
     final t = ref.watch(tProvider);
     final theme = TsundokuTheme.of(context);
 
-    return SingleChildScrollView(
+    return TsundokuSmoothScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

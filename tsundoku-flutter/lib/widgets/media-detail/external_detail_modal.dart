@@ -22,6 +22,7 @@ import '../../shared/ui/media_cover_placeholder.dart';
 import '../../shared/ui/modal.dart';
 import '../../shared/ui/toast.dart';
 import '../../shared/ui/tsundoku_image.dart';
+import '../../shared/ui/tsundoku_scroll.dart';
 import 'detail_formatters.dart' show joinOriginalTitle;
 import 'detail_header.dart';
 
@@ -466,7 +467,7 @@ class _ExternalDetailModalState extends ConsumerState<ExternalDetailModal> {
                               ),
                             ),
                           )
-                        : SingleChildScrollView(
+                        : TsundokuSmoothScrollView(
                             child: isDesktop
                                 ? Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -701,7 +702,7 @@ class _ExternalDetailModalState extends ConsumerState<ExternalDetailModal> {
                       const BoxConstraints(maxHeight: 224), // max-h-56
                   child: Padding(
                     padding: const EdgeInsets.only(right: 4), // pr-1
-                    child: SingleChildScrollView(
+                    child: TsundokuSmoothScrollView(
                       child: Column(
                         children: [
                           for (final ep in media.episodes!)

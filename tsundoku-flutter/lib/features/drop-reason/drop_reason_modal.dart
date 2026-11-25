@@ -11,6 +11,7 @@ import 'package:tsundoku_flutter/shared/api/api.dart';
 import 'package:tsundoku_flutter/shared/i18n/index.dart';
 import 'package:tsundoku_flutter/shared/types/enums.dart';
 import 'package:tsundoku_flutter/shared/ui/modal.dart';
+import 'package:tsundoku_flutter/shared/ui/tsundoku_scroll.dart';
 
 class DropReasonModal extends ConsumerStatefulWidget {
   final DropPromptTarget? target;
@@ -254,7 +255,7 @@ class _DropReasonModalState extends ConsumerState<DropReasonModal> {
             // Chips container
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 224),
-              child: SingleChildScrollView(
+              child: TsundokuSmoothScrollView(
                 child: Wrap(
                   spacing: 8,
                   runSpacing: 8,

@@ -20,6 +20,7 @@ import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/types/index.dart';
 import '../../shared/ui/modal.dart';
 import '../../shared/ui/popover_menu.dart';
+import '../../shared/ui/tsundoku_scroll.dart';
 
 // Tailwind-литералы (вне ThemeExtension).
 const Color _kTrackFaint = Color(0xFF161A22); // --color-track-faint
@@ -712,7 +713,7 @@ class _FillMissingModalState extends ConsumerState<FillMissingModal> {
             // max-h-52 overflow-y-auto: скролл внутри модалки.
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 208), // max-h-52
-              child: SingleChildScrollView(
+              child: TsundokuSmoothScrollView(
                 child: Column(
                   children: [
                     for (final field in emptyFields)

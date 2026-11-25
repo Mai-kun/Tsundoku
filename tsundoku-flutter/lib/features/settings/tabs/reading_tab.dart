@@ -13,6 +13,7 @@ import '../../../shared/i18n/index.dart';
 import '../../../shared/theme/tsundoku_tokens.dart';
 import '../../../shared/ui/text_field.dart';
 import '../../../shared/ui/toast.dart';
+import '../../../shared/ui/tsundoku_scroll.dart';
 import '../../../shared/utils/ui_settings.dart';
 
 class ReadingTab extends ConsumerStatefulWidget {
@@ -100,7 +101,7 @@ class _ReadingTabState extends ConsumerState<ReadingTab> {
     final t = ref.watch(tProvider);
     final theme = TsundokuTheme.of(context);
 
-    return SingleChildScrollView(
+    return TsundokuSmoothScrollView(
       padding: const EdgeInsets.all(24),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 540),

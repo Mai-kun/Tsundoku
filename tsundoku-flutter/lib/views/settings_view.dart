@@ -23,7 +23,7 @@ import '../features/settings/tabs/storage_tab.dart';
 import '../features/settings/tabs/update_tab.dart';
 import '../shared/i18n/index.dart';
 import '../shared/theme/tsundoku_tokens.dart';
-import '../shared/ui/smooth_scroll_controller.dart';
+import '../shared/ui/tsundoku_scroll.dart';
 
 enum SettingsTab {
   sources('sources'),
@@ -76,7 +76,7 @@ class SettingsView extends ConsumerStatefulWidget {
 
 class SettingsViewState extends ConsumerState<SettingsView> {
   late SettingsTab _activeTab;
-  final SmoothScrollController _sidebarScroll = SmoothScrollController();
+  final SmoothScrollController _sidebarScroll = createTsundokuScrollController();
 
   @override
   void initState() {
@@ -255,7 +255,7 @@ class SettingsViewState extends ConsumerState<SettingsView> {
               Expanded(
                 child: Container(
                   color: const Color(0x66151A26), // bg-[#151a26]/40
-                  child: SmoothScrollScope(
+                  child: TsundokuSmoothScrollScope(
                     key: ValueKey(_activeTab),
                     child: _buildTabContent(_activeTab),
                   ),
@@ -329,7 +329,7 @@ class SettingsViewState extends ConsumerState<SettingsView> {
             Expanded(
               child: Container(
                 color: const Color(0x66151A26), // bg-[#151a26]/40
-                child: SmoothScrollScope(
+                child: TsundokuSmoothScrollScope(
                   key: ValueKey(_activeTab),
                   child: _buildTabContent(_activeTab),
                 ),

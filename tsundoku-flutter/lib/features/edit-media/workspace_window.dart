@@ -15,6 +15,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:tsundoku_flutter/features/edit-media/workspace_layout.dart';
 import 'package:tsundoku_flutter/shared/i18n/index.dart';
 import 'package:tsundoku_flutter/shared/theme/tsundoku_tokens.dart';
+import 'package:tsundoku_flutter/shared/ui/tsundoku_scroll.dart';
 
 /// Жёсткие границы вьюпорта (зеркало workspaceLayout): бока 16, полоса
 /// тулбара 64 сверху, снизу 16.
@@ -282,7 +283,7 @@ class _WorkspaceWindowState extends ConsumerState<WorkspaceWindow> {
                       opacity: collapsed ? 0 : 1,
                       child: IgnorePointer(
                         ignoring: collapsed, // inert={collapsed}
-                        child: SingleChildScrollView(
+                        child: TsundokuSmoothScrollView(
                           padding: const EdgeInsets.all(12), // p-3
                           child: widget.child,
                         ),

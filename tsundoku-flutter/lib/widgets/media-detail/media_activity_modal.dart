@@ -17,6 +17,7 @@ import '../../shared/types/index.dart';
 import '../../shared/ui/confirm_dialog.dart';
 import '../../shared/ui/modal.dart';
 import '../../shared/ui/toast.dart';
+import '../../shared/ui/tsundoku_scroll.dart';
 import '../../shared/utils/history_formatters.dart';
 
 /// Модалка истории активности (1-в-1 с MediaActivityModal.svelte).
@@ -377,7 +378,7 @@ class _MediaActivityModalState extends ConsumerState<MediaActivityModal> {
                                 ],
                               ),
                             )
-                          : SingleChildScrollView(
+                          : TsundokuSmoothScrollView(
                               child: Column(
                                 children: [
                                   for (final event in _events)
